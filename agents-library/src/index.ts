@@ -90,6 +90,7 @@ export { timer, type Timer } from './utils/timer.js';
 export { isWsl, toNativePath } from './utils/path-utils.js';
 export { loadVaultCredentials, loadModelManagerCredentials, type VaultCredentials, type ModelManagerCredentials } from './utils/vault.js';
 export { loadConfig, registerConfigMapping, type LoadConfigResult } from './utils/config.js';
+export { loadDirective, type DirectiveContext, type DirectiveExport } from './utils/directive.js';
 export { Config, readConfig, readConfigFile } from './utils/read-config.js';
 export {
   invokeShrimTool,

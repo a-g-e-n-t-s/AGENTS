@@ -1,3 +1,0 @@
-# Override root .gitignore — dist/ must be included for kadi publish
-!dist/
-node_modules/

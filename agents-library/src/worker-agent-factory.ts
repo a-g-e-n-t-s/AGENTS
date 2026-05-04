@@ -43,6 +43,7 @@ import { logger, MODULE_AGENT } from './utils/logger.js';
 import { timer } from './utils/timer.js';
 import type { MemoryService } from './memory/memory-service.js';
 import { formatMemoryContext } from './memory/memory-service.js';
+import { loadDirective, type DirectiveContext } from './utils/directive.js';
 
 // ============================================================================
 // Configuration Validation Schema
@@ -248,6 +249,9 @@ export class BaseWorkerAgent extends BaseAgent {
    * Loaded in initializeClient(), null if not installed or load fails.
    */
   protected nativeFileLocal: any | null = null;
+
+  /** Loaded directive text (injected into system prompt). Set via loadAgentDirective() or setDirective(). */
+  protected directive: string | null = null;
 
   /** Tool names provided by ability-file-local (used for routing) */
   private static readonly FILE_LOCAL_TOOLS = new Set([
@@ -680,7 +684,17 @@ export class BaseWorkerAgent extends BaseAgent {
       const tools = await this.buildToolDefinitionsAsync();
       logger.info(MODULE_AGENT, `Available tools: ${tools.length}`, timer.elapsed('factory'));
 
-      // Step 4.5: Recall relevant past experience (non-blocking, best-effort)
+      // Step 4.5: Load directive (if not already loaded)
+      if (!this.directive) {
+        try {
+          const toolNames = tools.map(t => t.function?.name).filter(Boolean) as string[];
+          await this.loadAgentDirective(process.cwd(), toolNames);
+        } catch (err: any) {
+          logger.warn(MODULE_AGENT, `Directive load failed (non-fatal): ${err.message}`, timer.elapsed('factory'));
+        }
+      }
+
+      // Step 4.6: Recall relevant past experience (non-blocking, best-effort)
       let memoryContext = '';
       if (this.memoryService) {
         try {
@@ -895,9 +909,17 @@ export class BaseWorkerAgent extends BaseAgent {
       ? `\n## Predecessor Tasks\nThe following tasks were completed before yours. You can read their output files using git_git_show with the branch name:\n${task.predecessors.map(p => `- **${p.role}** task (${p.taskId}): branch \`${p.branch}\`${p.commitHash ? ` commit \`${p.commitHash}\`` : ''}\n  To read a file: git_git_show with path="${this.worktreePath}" and object="${p.branch}:<filename>"`).join('\n')}\n`
       : '';
 
+    const directiveSection = this.directive
+      ? `\n## Agent Directive\n${this.directive}\n`
+      : '';
+
+    const defaultRoleFocus = this.directive
+      ? '' // Directive replaces the hardcoded role focus
+      : `\n- Focus on ${this.role === 'artist' ? 'creative and artistic elements. IMPORTANT: You cannot generate binary image files (PNG, GIF, JPG). Instead, generate all pixel art and graphics as SVG files using <rect> elements on a grid. Use a limited palette (<=16 colors). Never create placeholder or fake image files — always produce real, renderable SVG that displays the intended artwork when opened in a browser.' : this.role === 'designer' ? 'design principles and aesthetics' : 'code quality and best practices'}`;
+
     return `You are a ${this.role} agent working in the KĀDI multi-agent system.
 Your worktree directory is: ${this.worktreePath}
-
+${directiveSection}
 Task ID: ${task.taskId}
 Description: ${task.description}
 Implementation Guide: ${implementationGuide}
@@ -917,8 +939,7 @@ Important:
 - For ALL git tools (git_git_add, git_git_commit, etc.), you MUST pass path: "${this.worktreePath}" as a parameter.
 - You MUST complete the full cycle: write files → git_git_add → git_git_commit. Skipping the commit is a failure.
 - If the task description specifies an exact commit message, you MUST use that exact message
-- Default commit message format (use ONLY when no commit message is specified in the task): "${this.commitFormat ? this.commitFormat.replace('{taskId}', task.taskId) : `feat(${this.role}): <description> [${task.taskId}]`}"
-- Focus on ${this.role === 'artist' ? 'creative and artistic elements. IMPORTANT: You cannot generate binary image files (PNG, GIF, JPG). Instead, generate all pixel art and graphics as SVG files using <rect> elements on a grid. Use a limited palette (<=16 colors). Never create placeholder or fake image files — always produce real, renderable SVG that displays the intended artwork when opened in a browser.' : this.role === 'designer' ? 'design principles and aesthetics' : 'code quality and best practices'}`;
+- Default commit message format (use ONLY when no commit message is specified in the task): "${this.commitFormat ? this.commitFormat.replace('{taskId}', task.taskId) : `feat(${this.role}): <description> [${task.taskId}]`}"${defaultRoleFocus}`;
   }
 
   /**
@@ -1669,6 +1690,30 @@ Important:
     if (roleConfig.provider?.temperature !== undefined) this.temperature = roleConfig.provider.temperature;
     if (roleConfig.provider?.maxTokens !== undefined) this.maxTokens = roleConfig.provider.maxTokens;
     if (roleConfig.commitFormat) this.commitFormat = roleConfig.commitFormat;
+  }
+
+  /**
+   * Load directive from the agent's src/directives/ directory.
+   * Call after tools are discovered so the directive can reference available tools.
+   */
+  public async loadAgentDirective(agentDir: string, toolNames: string[]): Promise<void> {
+    const context: DirectiveContext = {
+      tools: toolNames,
+      role: this.role,
+      agentId: this.config.agentId,
+    };
+    this.directive = await loadDirective(agentDir, context);
+    if (this.directive) {
+      const preview = this.directive.trim().split('\n').find(l => l.trim())?.trim().slice(0, 80) || '';
+      logger.info(MODULE_AGENT, `Loaded directive for ${this.role} (${this.directive.length} chars): ${preview}`, timer.elapsed('factory'));
+    } else {
+      logger.warn(MODULE_AGENT, `No directive found for ${this.role} in ${agentDir}/src/directives/`, timer.elapsed('factory'));
+    }
+  }
+
+  /** Manually set a directive string (for agents that build their own). */
+  public setDirective(text: string | null): void {
+    this.directive = text;
   }
 }
 
