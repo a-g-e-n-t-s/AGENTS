@@ -13,7 +13,7 @@
  * @module agent-builder
  */
 
-import { BaseAgent, readConfig, loadVaultCredentials, setLogLevel, setAgentTag, logger, timer } from 'agents-library';
+import { BaseAgent, readConfig, loadVaultCredentials, setLogLevel, setAgentTag, logger, timer, loadDirective } from 'agents-library';
 import type { BaseAgentConfig } from 'agents-library';
 import { registerAllTools } from './tools/index.js';
 
@@ -113,6 +113,19 @@ async function main(): Promise<void> {
     // Step 2: Connect to broker
     const vault = await loadVaultCredentials();
     await baseAgent.connect(vault);
+
+    // Step 3: Load directive
+    try {
+      const toolNames = baseAgent.client.readAgentJson().tools.map((t: any) => t.name);
+      const directive = await loadDirective(process.cwd(), { tools: toolNames, agentId });
+      if (directive) {
+        logger.info(agentId, `Loaded directive (${directive.length} chars): ${directive.trim().split('\n').find((l: string) => l.trim())?.trim().slice(0, 80)}`, timer.elapsed('main'));
+      } else {
+        logger.debug(agentId, 'No directive found', timer.elapsed('main'));
+      }
+    } catch (err: any) {
+      logger.warn(agentId, `Directive load failed (non-fatal): ${err.message}`, timer.elapsed('main'));
+    }
 
     // Ready
     logger.info(agentId, `Ready (${timer.elapsed('main')})`, timer.elapsed('main'));

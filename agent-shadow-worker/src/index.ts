@@ -17,7 +17,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { createShadowAgent, BaseAgent, loadVaultCredentials, readConfig, setLogLevel, setAgentTag, logger, timer } from 'agents-library';
+import { createShadowAgent, BaseAgent, loadVaultCredentials, readConfig, setLogLevel, setAgentTag, logger, timer, loadDirective } from 'agents-library';
 import type { BaseAgentConfig } from 'agents-library';
 import { ShadowRoleLoader } from './roles/ShadowRoleLoader.js';
 
@@ -173,6 +173,15 @@ async function main(): Promise<void> {
 
     // Step 1: Connect to broker
     await baseAgent.connect(vault);
+
+    // Step 1a: Load directive
+    try {
+      const toolNames = baseAgent.client.readAgentJson().tools.map((t: any) => t.name);
+      const directive = await loadDirective(process.cwd(), { tools: toolNames, agentId });
+      if (directive) {
+        logger.info(agentId, `Loaded directive (${directive.length} chars): ${directive.trim().split('\n').find((l: string) => l.trim())?.trim().slice(0, 80)}`, timer.elapsed('main'));
+      }
+    } catch {}
 
     // Step 1b: Load ability-file-local natively (for watch_folder)
     let nativeFileLocal: any = null;
