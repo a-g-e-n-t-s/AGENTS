@@ -255,6 +255,7 @@ export class BaseWorkerAgent extends BaseAgent {
     'delete_file_or_folder', 'create_folder', 'create_file',
     'watch_folder', 'unwatch_folder', 'compress_file', 'decompress_file',
     'compress_multiple_files', 'decompress_multiple_files', 'search_files',
+    'read_file', 'write_file',
   ]);
 
   // ============================================================================
@@ -923,7 +924,7 @@ Important:
   /**
    * Build tool definitions: local tools + dynamic discovery from KĀDI broker
    *
-   * 1. Always includes local tools (write_file, read_file)
+   * 1. Always includes write_file (local handler)
    * 2. Discovers all network tools from broker via kadi.ability.list
    * 3. Converts to OpenAI-compatible ToolDefinition format
    */
@@ -943,21 +944,6 @@ Important:
             content: { type: 'string', description: 'File content to write' }
           },
           required: ['path', 'content']
-        }
-      }
-    });
-
-    tools.push({
-      type: 'function',
-      function: {
-        name: 'read_file',
-        description: 'Read content from a file in the worktree.',
-        parameters: {
-          type: 'object',
-          properties: {
-            path: { type: 'string', description: 'Absolute file path within the worktree' }
-          },
-          required: ['path']
         }
       }
     });
@@ -1110,21 +1096,6 @@ Important:
       }
     });
 
-    tools.push({
-      type: 'function',
-      function: {
-        name: 'read_file',
-        description: 'Read content from a file in the worktree.',
-        parameters: {
-          type: 'object',
-          properties: {
-            path: { type: 'string', description: 'Absolute file path within the worktree' }
-          },
-          required: ['path']
-        }
-      }
-    });
-
     this.appendHardcodedGitTools(tools);
 
     return tools;
@@ -1133,7 +1104,7 @@ Important:
   /**
    * Execute a remote MCP tool or local file operation via KĀDI broker
    *
-   * Routes tool calls to either local file operations (write_file, read_file)
+   * Routes tool calls to either local file operations (write_file)
    * or remote MCP tools via client.invokeRemote().
    *
    * @param toolName - Tool name (e.g., 'git_git_add', 'write_file')
@@ -1158,20 +1129,12 @@ Important:
       return { success: true, path: filePath, bytesWritten: (toolArgs.content as string).length };
     }
 
-    if (toolName === 'read_file') {
-      const filePath = toolArgs.path as string;
-      const normalizedPath = filePath.replace(/\\/g, '/');
-      const normalizedWorktree = this.worktreePath.replace(/\\/g, '/');
-      if (!normalizedPath.startsWith(normalizedWorktree)) {
-        throw new Error(`Path ${filePath} is outside worktree ${this.worktreePath}`);
-      }
-      const fs = await import('fs/promises');
-      const content = await fs.readFile(filePath, 'utf-8');
-      return { success: true, content };
-    }
-
     // Route to native ability-file-local if loaded (zero-latency, in-process)
     if (this.nativeFileLocal && BaseWorkerAgent.FILE_LOCAL_TOOLS.has(toolName)) {
+      // Shim: built-in tools use 'path', ability-file-local uses 'filePath'
+      if ((toolName === 'read_file') && toolArgs.path && !toolArgs.filePath) {
+        toolArgs = { ...toolArgs, filePath: toolArgs.path };
+      }
       return await this.nativeFileLocal.invoke(toolName, toolArgs);
     }
 
