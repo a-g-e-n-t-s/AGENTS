@@ -245,3 +245,4 @@ docs/_build/
 packages/
 *.nupkg
 .playwright-mcp/
+.agent-quest/
