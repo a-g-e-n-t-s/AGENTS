@@ -35,6 +35,15 @@ jobs:
         run: npm ci
         working-directory: agent-docs
 
+      # ── Step 1.5: Restore docs generation cache ──
+      - name: Restore docs-gen cache
+        uses: actions/cache@v4
+        with:
+          path: agent-docs/.cache/docs-gen
+          key: docs-gen-${{ hashFiles('**/src/**/*.ts', '**/agent.json', '**/config.toml') }}
+          restore-keys: |
+            docs-gen-
+
       # ── Step 2: Sync docs from all repos ──
       - name: Sync documentation
         env:
