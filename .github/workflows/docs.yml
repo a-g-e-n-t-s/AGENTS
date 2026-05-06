@@ -35,6 +35,9 @@ jobs:
 
       # ── Step 2: Sync docs from all repos ──
       - name: Sync documentation
+        env:
+          MODEL_MANAGER_BASE_URL: ${{ secrets.MODEL_MANAGER_BASE_URL }}
+          MODEL_MANAGER_API_KEY: ${{ secrets.MODEL_MANAGER_API_KEY }}
         run: npx tsx scripts/sync-cli.ts
         working-directory: agent-docs
 
@@ -53,8 +56,11 @@ jobs:
           fi
         working-directory: agent-docs
 
-      # ── Step 4: Re-sync after README generation ──
-      - name: Re-sync documentation (pick up new READMEs)
+      # ── Step 4: Re-sync after README generation, then regenerate LLM docs ──
+      - name: Re-sync documentation (pick up new READMEs + regenerate)
+        env:
+          MODEL_MANAGER_BASE_URL: ${{ secrets.MODEL_MANAGER_BASE_URL }}
+          MODEL_MANAGER_API_KEY: ${{ secrets.MODEL_MANAGER_API_KEY }}
         run: npx tsx scripts/sync-cli.ts
         working-directory: agent-docs
 
