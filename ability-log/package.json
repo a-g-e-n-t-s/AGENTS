@@ -1,6 +1,6 @@
 {
   "name": "ability-log",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "type": "module",
   "description": "Persistent log and event storage ability — writes to ArcadeDB, supports batch insert, query, and auto-prune",
   "main": "dist/src/index.js",
@@ -13,10 +13,8 @@
   "license": "Apache License 2.0",
   "dependencies": {
     "@kadi.build/core": "*",
-    "tsx": "^4.21.0"
-  },
-  "devDependencies": {
-    "@types/node": "^25.5.0",
+    "@types/node": "^22.0.0",
+    "tsx": "^4.21.0",
     "typescript": "^5.0.0"
   }
 }
