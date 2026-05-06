@@ -60,7 +60,9 @@ jobs:
       - name: Restore docs-gen cache
         uses: actions/cache@v4
         with:
-          path: agent-docs/.cache/docs-gen
+          path: |
+            agent-docs/.cache/docs-gen
+            agent-docs/.cache/readme-gen
           key: docs-gen-${{ hashFiles('**/src/**/*.ts', '**/agent.json', '**/config.toml') }}
           restore-keys: |
             docs-gen-
