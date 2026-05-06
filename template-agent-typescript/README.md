@@ -28,6 +28,7 @@ This enhanced version extends the base KĀDI template with four major capabiliti
 - [Hybrid Memory System](#hybrid-memory-system)
 - [File Management](#file-management)
 - [Deployment Service](#deployment-service)
+- [Registered Tools](#registered-tools)
 - [Bot Integration](#bot-integration)
 - [Development](#development)
 - [Testing](#testing)
@@ -39,12 +40,12 @@ This enhanced version extends the base KĀDI template with four major capabiliti
 ### Prerequisites
 
 - Node.js 18.0 or higher
-- A KADI broker reachable from your agent (configured in config.toml, default example: ws://localhost:8080/kadi)
+- A KADI broker reachable from your agent (configured in config.toml, default example: ws://localhost:8080/kadi). You may also configure a remote broker (see config.toml).
 - Anthropic API key (if using Anthropic)
 - Model Manager Gateway URL and API key (optional)
 - ArcadeDB instance (optional — system degrades to file-only if unavailable)
 
-Note: This project uses config.toml for runtime configuration (see next section) rather than a .env file.
+Note: This project uses config.toml for runtime configuration (see next section) rather than a .env file. Broker URLs can also be overridden at runtime using environment variables KADI_BROKER_URL_LOCAL and KADI_BROKER_URL_REMOTE.
 
 ### Installation
 
@@ -123,6 +124,13 @@ Secrets and runtime credentials are resolved via loadVaultCredentials() in code:
   - MODEL_MANAGER_API_KEY
   - ARCADEDB_URL
 
+Broker resolution details (from src/index.ts):
+- At least one of [broker.local] or [broker.remote] is required in config.toml.
+- If both are present, the agent will use broker.local as primary and broker.remote as additional.
+- You can override configured broker URLs at runtime using:
+  - KADI_BROKER_URL_LOCAL
+  - KADI_BROKER_URL_REMOTE
+
 Example of the included config.toml (already present in repo):
 
 ```toml
@@ -137,6 +145,10 @@ LEVEL = "debug"
 [broker.local]
 URL = "ws://localhost:8080/kadi"
 NETWORKS = ["chatbot"]
+
+# [broker.remote]
+# URL = "wss://broker.example.com/kadi"
+# NETWORKS = ["global"]
 
 [provider]
 PRIMARY = "model-manager"
@@ -154,6 +166,7 @@ DATA_PATH = "./data/memory"
 [secrets]
 VAULTS = ["anthropic", "model-manager"]
 
+# Bot configuration — uncomment and set USER_IDs to enable
 [bot.slack]
 ENABLED = "true"
 USER_ID = "U09SCDV78AK"
@@ -171,7 +184,7 @@ USER_ID = "1438685741751210025"
 
 ## 📄 agent.json
 
-The repository includes an agent.json used by agent tooling. Current relevant fields:
+The repository includes an agent.json (repo root) used by agent tooling. Current relevant fields:
 
 {
   "name": "template-agent-typescript",
@@ -203,6 +216,15 @@ Configuration table (summary):
 Abilities:
 - `secret-ability` ^0.9.4
 
+## Registered Tools
+
+This agent loads native tools/abilities at startup (see src/index.ts registerAllTools()). The repository includes a small set of registered tools by default:
+
+- echo — Echo back the input text with its length (placeholder tool — replace with your own)
+- list_tools — List all available tools in a human-readable format (informational; does not complete the user's request)
+
+Replace or extend these tools in src/tools/ as needed for your agent's domain.
+
 ## 🤖 Multi-LLM Provider System
 
 (unchanged — retains provider system documentation; note that the repo's default provider ordering is configured in config.toml: primary=model-manager, fallback=anthropic)
@@ -227,7 +249,7 @@ Abilities:
 
 ### Scripts
 
-Use the scripts provided in package/agent.json:
+Use the scripts provided in agent.json (repo root):
 
 ```bash
 # Development with hot-reload
@@ -278,11 +300,6 @@ Built on the **KĀDI (Knowledge Agent Development Infrastructure)** protocol, en
 
 ## 🔗 Related Documentation
 
-- [Architecture Details](./docs/architecture.md) - Comprehensive architecture documentation
-- [Deployment Guide](./docs/deployment-guide.md) - Step-by-step deployment instructions
-- [API Reference](./docs/api-reference.md) - Complete API documentation
-- [Original Template README](./docs/README.md) - Base template documentation
+- [Architecture Details](./docs/architecture.md)
 
 ---
-
-**Ready to enhance your agent?** Edit config.toml, provide your secrets (env or vault), then run npm run dev to get started. 🚀

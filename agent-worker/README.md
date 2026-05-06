@@ -28,10 +28,14 @@ Quick Start
 Helpful dev commands:
 - npm run dev          (live-reload TypeScript with tsx)
 - npm run dev:artist   (dev with AGENT_ROLE=artist)
+- npm run dev:designer (dev with AGENT_ROLE=designer)
+- npm run dev:programmer (dev with AGENT_ROLE=programmer)
 - npm run build        (npx tsc)
+- npm run type-check   (npx tsc --noEmit)
 - npm run lint         (npx eslint src --ext .ts)
 - npm test             (npx vitest)
 - npm run preflight    (checks node --version)
+- npm run clean        (removes node_modules, dist, abilities, agent-lock.json, package-lock.json)
 
 Tools
 -----
@@ -39,7 +43,7 @@ Tools
 |------|-------------|
 | agents-library (createWorkerAgent, loadVaultCredentials, readConfig, setLogLevel, setAgentTag, logger, timer) | Core runtime primitives: BaseAgent (provides KadiClient, ProviderManager, MemoryService), createWorkerAgent (factory to create the worker loop), configuration helpers (readConfig), vault loader (loadVaultCredentials), and logging/timing helpers. Imported from dependency "agents-library". |
 | RoleLoader (./roles/RoleLoader.js) | Loads role-specific configuration from config/roles/{role}.toml and applies role settings (capabilities, maxConcurrentTasks, behavior tuning) to the worker agent. |
-| KADI Brokers (config.toml / agent.json brokers.local / brokers.remote) | Supports multiple broker endpoints. URLs are configured in config.toml or overridden via environment variables (KADI_BROKER_URL_LOCAL, KADI_BROKER_URL_REMOTE). Network subscriptions can be provided via KADI_NETWORK_LOCAL and KADI_NETWORK_REMOTE. |
+| KADI Brokers (config.toml / agent.json brokers.local / brokers.remote) | Supports multiple broker endpoints. URLs are configured in config.toml or overridden via environment variables (KADI_BROKER_URL_LOCAL, KADI_BROKER_URL_REMOTE). Broker network lists are configured under broker.local.NETWORKS or broker.remote.NETWORKS (arrays) or overridden with KADI_NETWORK_LOCAL / KADI_NETWORK_REMOTE (comma-separated). |
 | mcp-server-quest RPCs (quest_quest_register_agent, quest_quest_agent_heartbeat, quest_quest_unregister_agent) | Remote procedures invoked to register the agent, send heartbeats, and unregister on shutdown. |
 | loadVaultCredentials | Utility to load secrets/vault credentials (used during startup to fetch API keys or agent secrets). Environment variables take precedence over vault values. |
 | Abilities (secret-ability, ability-file-local, ability-log) | Declared abilities in agent.json; these are available for injection/usage at runtime. |
@@ -64,10 +68,18 @@ Key agent.json fields (updated)
 - brokers: local and remote endpoints defined (see agent.json)
 
 Key configuration fields and environment variables:
-- config.toml [agent section]
-  - agent.ID, agent.ROLE, agent.VERSION — identity and default role
+- config.toml [agent] section
+  - agent.ID, agent.ROLE, agent.VERSION — identity and default role (note: the repository's config.toml contains ROLE = "programmer" and VERSION = "1.0.0" by default)
+- [logging]
+  - LEVEL — logging level used at startup (e.g. "info"). The agent sets the log level via agents-library.setLogLevel.
+- Provider configuration ([provider])
+  - PRIMARY — primary provider to use (example: "model-manager")
+  - FALLBACK — fallback provider (example: "anthropic")
+  - provider.<name>.MODEL — provider-specific model selection (e.g. provider.model-manager.MODEL = "gpt-5-mini")
+  - The runtime loads providers via the ProviderManager and chooses PRIMARY/FALLBACK per config.
 - Broker resolution:
-  - Primary broker can be configured under [broker.local] or [broker.remote] in config.toml.
+  - Primary broker configured under [broker.local] or [broker.remote] in config.toml.
+  - broker.local.URL and broker.local.NETWORKS (array) are used when present.
   - Environment overrides:
     - KADI_BROKER_URL_LOCAL — override broker.local.URL
     - KADI_BROKER_URL_REMOTE — override broker.remote.URL
@@ -89,7 +101,7 @@ Key configuration fields and environment variables:
 Runtime behavior configuration (from code):
 - Role config path: config/roles/{role}.toml (loaded by RoleLoader)
   - Typical fields in role TOML: role, capabilities (array), maxConcurrentTasks, and other tuning.
-- Broker selection: code will use the local broker URL if configured, otherwise remote; supports an additional broker when both present.
+- Broker selection: code will prefer the local broker configuration if present; if both local and remote are present the agent can configure an additionalBroker to use in addition to the primary.
 - Heartbeat/registration RPC names:
   - quest_quest_register_agent (register)
   - quest_quest_agent_heartbeat (heartbeat)
@@ -188,3 +200,5 @@ Notes and tips:
 Contact / Contribution
 ----------------------
 Follow repository contribution and code
+
+---

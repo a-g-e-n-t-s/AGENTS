@@ -23,7 +23,7 @@ Key exports (source files referenced)
 - Producer / tool invocation helpers
   - invokeShrimTool, orchestrateWithClaude, publishToolEvent, classifyToolError, isToolSuccess, isToolFailure
   - Types: InvokeOptions, ShrimpToolResult, ToolDefinition, ToolInvocation, OrchestrationOptions, OrchestrationResult, etc.
-- Types for configuration, events, and tool schemas (AgentRole, WorkerAgentConfig, ShadowAgentConfig, PathConfig, NetworkConfig, TaskAssignedEvent, TaskCompletedEvent, ToolInvocationResult, ErrorClassification, ...)
+- Types for configuration, events, and tool schemas (AgentRole, WorkerAgentConfig, ShadowAgentConfig, WorkerBehaviors, PathConfig, NetworkConfig, TaskAssignedEvent, TaskCompletedEvent, TaskFailedEvent, TaskRejectedEvent, BackupEvent, ToolInvocationResult, ErrorClassification, ...)
 
 Quick Start
 -----------
@@ -38,6 +38,7 @@ kadi run start
 
 Notes:
 - Use a .env file for local secrets (dotenv is a dependency). Typical environment variables consumed by helpers include KADI_BROKER_URL, KADI_BROKER_RETRY, VAULT_TOKEN, MODEL_MANAGER_TOKEN, and CLAUDE_API_KEY (Anthropic/Claude SDK via @anthropic-ai/sdk).
+- Shadow agents watch filesystems (chokidar is used for file watching) and may require appropriate file permissions.
 - Source entry point: src/index.ts — exports are implemented in the corresponding compiled files (e.g., ./base-bot.js, ./kadi-event-publisher.js).
 
 Tools
@@ -77,6 +78,8 @@ Common config types and fields
   - capabilities: string[]
   - network?: NetworkConfig
   - paths?: PathConfig
+- WorkerBehaviors
+  - Optional overrides/hooks to customize worker behavior and task handling (exported types for runtime injection)
 - ShadowAgentConfig
   - id: string
   - watchPaths: string[]
@@ -116,10 +119,10 @@ High-level data flow
 2. Producer publishes TaskAssignedEvent to the KĀDI broker via KadiEventPublisher (publishToolEvent and KadiEventPublisher).
 3. Broker routes the event to workers (based on topics). Worker agents (created via WorkerAgentFactory/createWorkerAgent) subscribe to their task topics and begin work.
 4. Worker handlers use BaseWorkerAgent and BaseBot primitives for retry/circuit-breaker behavior, and they call invokeShrimTool to run shrimp-task-manager tools where applicable.
-5. Success/failure results are published back as TaskCompletedEvent or TaskFailedEvent. publishToolEvent provides standardized metadata (EventMetadata).
-6. Shadow agents (created via ShadowAgentFactory/createShadowAgent) monitor filesystem and git state, emit BackupEvent for snapshots, and serve as hot-backups for worker state.
+5. Success/failure results are published back as TaskCompletedEvent, TaskFailedEvent, or TaskRejectedEvent (for capability mismatches). publishToolEvent provides standardized metadata (EventMetadata).
+6. Shadow agents (created via ShadowAgentFactory/createShadowAgent) monitor filesystem and git state (chokidar is used for file watching), emit BackupEvent for snapshots, and serve as hot-backups for worker state.
 7. The producer can call orchestrateWithClaude to combine AI model responses (Anthropic/Claude via @anthropic-ai/sdk) with deterministic tool invocations (Option C) — tool invocations are recorded as ToolInvocation events for traceability.
-8. Error management uses classifyToolError to decide retry strategies (transient vs permanent) and isToolSuccess/isToolFailure guards to branch behavior.
+8. Error management uses classifyToolError (classifies errors including ErrorType/transient vs permanent) to decide retry strategies and isToolSuccess/isToolFailure guards to branch behavior.
 
 Key components
 - KadiEventPublisher — reliable broker connectivity and topic validation
@@ -163,6 +166,7 @@ Local development tips
 - Use ShadowAgentConfigSchema to validate shadow agent configuration before starting the agent.
 - Use loadDirective to load custom directive modules that extend agent behaviors at runtime.
 - Use readConfig/readConfigFile for structured JSON/YAML config files.
+- Shadow agents rely on chokidar (dependency) for filesystem watching; ensure the environment supports file watch events if running in containers/VMs.
 
 Contributing
 ------------
@@ -172,3 +176,7 @@ Contributing
 
 License and governance
 - This file documents the package usage and development conventions. Follow your organization's publishing and release processes for package versioning and deployment.
+
+---
+
+---

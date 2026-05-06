@@ -143,11 +143,19 @@ Extending tools
   3. Build (npm run build) for production or restart dev mode (npm run dev).
 
 Dependencies (selected)
-- @kadi.build/core — integration with the Kadi runtime
-- chokidar — file system watching
-- archiver, tar, unzipper — create and extract archives
-- tsx — run TypeScript files in Node without a build step
-- typescript — dev dependency for type checking (and other @types packages listed in devDependencies)
+- @kadi.build/core — *
+- archiver — ^6.0.1
+- chokidar — ^3.6.0
+- tar — ^6.2.0
+- tsx — ^4.21.0
+- unzipper — ^0.12.3
+
+Dev dependencies (selected)
+- typescript — ^5.0.0
+- @types/node — ^25.5.0
+- @types/archiver — ^7.0.0
+- @types/tar — ^6.1.13
+- @types/unzipper — ^0.10.11
 
 Support and issues
 - Report issues to your AGENTS/kadi project issue tracker. Include dist/index.js or index.ts, sample request payload, expected behavior, and actual behavior.
@@ -167,7 +175,14 @@ npm run start
 
 ## Tools
 
-<!-- TODO: Add Tools content -->
+| Tool | Description |
+|------|-------------|
+| list | List files and directories in a path (supports filters, recursion options) |
+| move | Move/rename files or directories |
+| copy | Copy files or directories (preserve structure when requested) |
+| delete | Delete files or directories (with safe/recursive options) |
+| create | Create files or directories (create parent directories when required) |
+| watch | Watch files or directories for events and emit events to the broker/stdio |
 
 ## Configuration
 
@@ -181,12 +196,16 @@ npm run start
 
 ## Architecture
 
-<!-- TODO: Add Architecture content -->
+High-level components
+- Entry (index.ts / dist/index.js) — registers tools and handlers.
+- Tool Handlers — list, move, copy, delete, create, watch implementations.
+- FileOps utilities — fs/promises helpers and archive/unpack helpers.
+- Watcher (chokidar) — emits file system events to the broker/stdio.
+- Kadi Core (@kadi.build/core) — runtime routing and invocation.
 
-## Development
+Data flow
+1. Kadi runtime invokes a tool by name.
+2. Handler validates input and performs file operations or registers watchers.
+3. Results and events are returned via the broker or stdio channel.
 
-```bash
-npm run setup
-npm run dev
-kadi run start
-```
+---
