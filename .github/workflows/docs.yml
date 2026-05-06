@@ -24,6 +24,21 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
+      # Clone sibling repos (Engine + DaemonAgent)
+      - name: Clone Engine repo
+        uses: actions/checkout@v4
+        with:
+          repository: dadavidtseng/Engine
+          path: ../Engine
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Clone DaemonAgent repo
+        uses: actions/checkout@v4
+        with:
+          repository: dadavidtseng/DaemonAgent
+          path: ../DaemonAgent
+          token: ${{ secrets.GITHUB_TOKEN }}
+
       - uses: actions/setup-node@v4
         with:
           node-version: 20
