@@ -63,14 +63,14 @@ Key files and fields:
   - description: "Evaluation engine ability - code diffs, test results, logs, behavior traces analysis"
   - entrypoint: "dist/index.js" (runtime artifact produced by the build step)
   - scripts:
-    - preflight: node --version
-    - setup: npm install && npm run build
-    - build: npx tsc
-    - start: node dist/index.js
-    - dev: npx tsx index.ts
-    - serve: npx tsx index.ts stdio
-    - serve:broker: npx tsx index.ts broker
-    - clean: rm -rf node_modules abilities agent-lock.json package-lock.json dist
+    - preflight: "node --version"
+    - setup: "npm install && npm run build"
+    - build: "npx tsc"
+    - start: "node dist/index.js"
+    - dev: "npx tsx index.ts"
+    - serve: "npx tsx index.ts stdio"
+    - serve:broker: "npx tsx index.ts broker"
+    - clean: "rm -rf node_modules abilities agent-lock.json package-lock.json dist"
   - abilities:
     - secret-ability: "*" (registered dependency required at runtime)
 

@@ -20,6 +20,7 @@ npm run dev
 
 Notes:
 - The build image (agent.json.build.default.run) runs several steps as part of the build: `npm ci --include=dev`, `kadi install kadi-secret`, `kadi install`, `npx tsc`, and `npm prune --omit=dev`. You may still need to run `kadi install` locally to install native abilities.
+- The build image also sets NODE_ENV=production in build.default.env.
 - The HTTP chat UI starts on port 3500 by default when running locally (set PORT to change).
 - The broker URL can be overridden with the BROKER_URL environment variable.
 
@@ -41,6 +42,8 @@ Notes:
 
 Additional notable fields in agent.json:
 - build.default.run includes: `npm ci --include=dev`, `kadi install kadi-secret`, `kadi install`, `npx tsc`, and `npm prune --omit=dev`.
+- build.default.from: `node:20-alpine`
+- build.default.env sets: `NODE_ENV=production`
 - deploy (akash-mainnet) includes a startup command that receives secrets and runs the agent:
   `kadi secret receive --vault model-manager --vault arcadedb && kadi run start`
   The Akash service exposes the container on port 3000 and sets ARCADE_HOST / ARCADE_PORT environment variables.
@@ -58,14 +61,14 @@ Additional notable fields in agent.json:
 
 - `global`
 
-> Runtime selection: the code selects the broker URL from the BROKER_URL environment variable first, then falls back to agent.json.brokers?.local, and finally `ws://localhost:8080/kadi` if none are set.
+> Runtime selection: at startup the code selects the broker URL from the BROKER_URL environment variable first, then falls back to agentJson.brokers?.local (if present), and finally to `ws://localhost:8080/kadi`. That chosen URL is mapped to a broker named `default` when creating the KadiClient (the client uses `default` as its defaultBroker).
 
 ## Architecture
 
 agent-expert lifecycle (high level):
 - Loads agent.json and creates a KadiClient (configured to use a default broker).
 - Attempts to load secrets via the `secret-ability` native ability and caches keys for model calls. At runtime the agent tries to load the keys `MM-1_API_KEY` and `MEMORY_API_KEY` from the vaults `model-manager` and `anthropic`, storing any found values in the exported `secretCache`.
-- Registers broker tools (see src/tools.ts) — tools like ask-agents and write-tdd are registered when connected to a broker.
+- Registers broker tools by calling `registerTools(client, secretCache)` — tools like ask-agents and write-tdd are registered when connected to a broker.
 - Connects to the broker (if available) and falls back to HTTP-only mode when not connected.
 - Starts an HTTP server (chat UI) on port 3500 by default (see src/server.ts).
 - Handles graceful shutdown on SIGINT.

@@ -27,11 +27,11 @@ Tools
 -----
 | Tool | Description |
 |------|-------------|
-| Claude (multimodal) | Primary multimodal model configured via config.toml (VISION_MODEL). Secrets should be placed in secrets.toml or your secret vault. |
+| Claude (multimodal) | Primary multimodal model configured via config.toml (VISION_MODEL = "claude-sonnet-4-20250514"). Place model API keys/secrets in `secrets.toml` or your secret vault. |
 | secret-ability | Declared ability dependency from agent.json (`"secret-ability": "*"`) — consumed at runtime by this package. |
-| @kadi.build/core | Kadi core runtime package used to register ability handlers and communicate with the Kadi broker. |
-| tsx | Lightweight TypeScript runtime used for development and to run index.ts when using `dev`/`serve`. |
-| TypeScript | Project is compiled to dist/ via `npx tsc` (build step is required for `npm run start`). |
+| @kadi.build/core | Kadi core runtime package used to register ability handlers and communicate with the Kadi broker (declared dependency). |
+| tsx | Lightweight TypeScript runtime used for development and to run index.ts when using `dev`/`serve` (`"tsx": "^4.21.0"`). |
+| TypeScript & types | Development tooling for compilation and types (`"typescript": "^5.9.3"`, `"@types/node": "^25.3.1"` — devDependencies). |
 
 Configuration
 -------------
@@ -167,7 +167,5 @@ npm install
 npm run setup
 kadi run start
 ```
-
----
 
 ---

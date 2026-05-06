@@ -221,7 +221,7 @@ Abilities:
 This agent loads native tools/abilities at startup (see src/index.ts registerAllTools()). The repository includes a small set of registered tools by default:
 
 - echo — Echo back the input text with its length (placeholder tool — replace with your own)
-- list_tools — List all available tools in a human-readable format (informational; does not complete the user's request)
+- list_tools — List all available tools in a human-readable format. This is an informational query — it does NOT complete the user's request
 
 Replace or extend these tools in src/tools/ as needed for your agent's domain.
 

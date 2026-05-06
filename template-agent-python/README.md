@@ -291,6 +291,3 @@ This project is part of ProtogameJS3D research thesis.
 ## Configuration
 
 <!-- TODO: Add Configuration content -->
-
-
----

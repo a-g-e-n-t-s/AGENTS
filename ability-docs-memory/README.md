@@ -203,4 +203,6 @@ kadi run start
 ### Abilities
 
 - `ability-graph` ^0.1.2
-- `secret-ability` ^0.9
+- `secret-ability` ^0.9.4
+
+---
