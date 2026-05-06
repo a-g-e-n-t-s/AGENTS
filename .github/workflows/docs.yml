@@ -9,6 +9,8 @@ on:
       - '**/agent.json'
       - '**/CLAUDE.md'
       - 'agent-docs/**'
+      - '**/src/**'
+      - '**/config.toml'
   workflow_dispatch:
 
 jobs:
