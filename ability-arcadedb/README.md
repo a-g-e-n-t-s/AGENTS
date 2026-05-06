@@ -158,7 +158,7 @@ kadi run start
 
 ## Tools
 
-<!-- TODO: Add Tools content -->
+See the Tools table above for the full list of registered tools and descriptions.
 
 ## Configuration
 
@@ -180,13 +180,25 @@ kadi run start
 
 ## Architecture
 
-<!-- TODO: Add Architecture content -->
+See the "Architecture" section above for key components, data flow, and how tools map to managers and the ArcadeHttpClient.
 
-## Development
+## Registered Tools (concise)
+- arcade-backup
+- arcade-restore
+- arcade-backup-cleanup
+- arcade-start
+- arcade-stop
+- arcade-status
+- arcade-health
+- arcade-import
+- arcade-export
+- arcade-db-create
+- arcade-db-list
+- arcade-db-info
+- arcade-db-drop
+- arcade-db-stats
+- arcade-query
+- arcade-command
+- arcade-batch
 
-```bash
-npm install
-npm run build
-npm run dev
-kadi run start
-```
+---

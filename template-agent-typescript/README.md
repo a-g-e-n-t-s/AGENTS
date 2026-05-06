@@ -39,12 +39,12 @@ This enhanced version extends the base KĀDI template with four major capabiliti
 ### Prerequisites
 
 - Node.js 18.0 or higher
-- A KADI broker reachable from your agent (configured in config.toml, default example: ws://localhost:8080/kadi)
+- A KADI broker reachable from your agent (configured in config.toml, default example: ws://localhost:8080/kadi). You may also configure a remote broker (see config.toml).
 - Anthropic API key (if using Anthropic)
 - Model Manager Gateway URL and API key (optional)
 - ArcadeDB instance (optional — system degrades to file-only if unavailable)
 
-Note: This project uses config.toml for runtime configuration (see next section) rather than a .env file.
+Note: This project uses config.toml for runtime configuration (see next section) rather than a .env file. Broker URLs can also be overridden at runtime using environment variables KADI_BROKER_URL_LOCAL and KADI_BROKER_URL_REMOTE.
 
 ### Installation
 
@@ -123,6 +123,13 @@ Secrets and runtime credentials are resolved via loadVaultCredentials() in code:
   - MODEL_MANAGER_API_KEY
   - ARCADEDB_URL
 
+Broker resolution details (from src/index.ts):
+- At least one of [broker.local] or [broker.remote] is required in config.toml.
+- If both are present, the agent will use broker.local as primary and broker.remote as additional.
+- You can override configured broker URLs at runtime using:
+  - KADI_BROKER_URL_LOCAL
+  - KADI_BROKER_URL_REMOTE
+
 Example of the included config.toml (already present in repo):
 
 ```toml
@@ -137,6 +144,10 @@ LEVEL = "debug"
 [broker.local]
 URL = "ws://localhost:8080/kadi"
 NETWORKS = ["chatbot"]
+
+# [broker.remote]
+# URL = "wss://broker.example.com/kadi"
+# NETWORKS = ["global"]
 
 [provider]
 PRIMARY = "model-manager"
@@ -154,6 +165,7 @@ DATA_PATH = "./data/memory"
 [secrets]
 VAULTS = ["anthropic", "model-manager"]
 
+# Bot configuration — uncomment and set USER_IDs to enable
 [bot.slack]
 ENABLED = "true"
 USER_ID = "U09SCDV78AK"
@@ -171,7 +183,7 @@ USER_ID = "1438685741751210025"
 
 ## 📄 agent.json
 
-The repository includes an agent.json used by agent tooling. Current relevant fields:
+The repository includes an agent.json (repo root) used by agent tooling. Current relevant fields:
 
 {
   "name": "template-agent-typescript",
@@ -227,7 +239,7 @@ Abilities:
 
 ### Scripts
 
-Use the scripts provided in package/agent.json:
+Use the scripts provided in agent.json (repo root):
 
 ```bash
 # Development with hot-reload
@@ -278,11 +290,4 @@ Built on the **KĀDI (Knowledge Agent Development Infrastructure)** protocol, en
 
 ## 🔗 Related Documentation
 
-- [Architecture Details](./docs/architecture.md) - Comprehensive architecture documentation
-- [Deployment Guide](./docs/deployment-guide.md) - Step-by-step deployment instructions
-- [API Reference](./docs/api-reference.md) - Complete API documentation
-- [Original Template README](./docs/README.md) - Base template documentation
-
----
-
-**Ready to enhance your agent?** Edit config.toml, provide your secrets (env or vault), then run npm run dev to get started. 🚀
+- [Architecture Details](./docs/architecture.md)

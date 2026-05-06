@@ -40,6 +40,45 @@ The agent publishes role-specific event topics, for example:
 
 See agent.json for full build and deploy profiles.
 
+### config.toml (important fields)
+
+The agent reads configuration from config.toml and role-specific files under config/roles/{role}.toml. Notable fields present in the repository:
+
+- [agent]
+  - ID — agent identifier (example: "agent-shadow-worker")
+  - ROLE — default role (artist/programmer/designer). AGENT_ROLE env var overrides this.
+  - VERSION — local agent config version
+
+- [logging]
+  - LEVEL — log level (info, debug, etc.)
+
+- [broker.local] / [broker.remote]
+  - URL — broker URL (e.g. ws://localhost:8080/kadi or wss://broker.dadavidtseng.com/kadi)
+  - NETWORKS — array of network names used for network resolution
+
+- [worktree]
+  - WORKER_PATH — filesystem path to the worker playground (e.g. C:/GitHub/agent-playground-artist)
+  - SHADOW_PATH — filesystem path to the shadow playground (e.g. C:/GitHub/agent-playground-shadow-artist)
+  - WORKER_BRANCH — branch name used on the worker repo
+  - SHADOW_BRANCH — branch name used on the shadow repo
+
+These worktree settings are used by the role loader / shadow logic to monitor and auto-initialize playground repositories and branches.
+
+- [secrets]
+  - VAULTS — array of vault names (example: ["anthropic", "model-manager", "arcadedb"])
+  - KEYS — list of vault keys expected (ANTHROPIC_API_KEY, MODEL_MANAGER_API_KEY, MODEL_MANAGER_BASE_URL, ARCADE_USERNAME, ARCADE_PASSWORD)
+
+- [arcadedb]
+  - HOST, PORT, USERNAME, DATABASE — ArcadeDB connection defaults used for telemetry/logging if configured
+
+Secrets are provided via vaults (see secrets.toml for local encrypted values). The deploy profiles require the following vaults/keys:
+
+- anthropic: ANTHROPIC_API_KEY
+- model-manager: MODEL_MANAGER_API_KEY, MODEL_MANAGER_BASE_URL
+- arcadedb: ARCADE_USERNAME, ARCADE_PASSWORD
+
+In production deployments the image runs a kadi secret receive command to fetch the vaults before starting.
+
 ### Brokers
 
 The agent will prefer a local broker when configured, and can also use a remote broker.
@@ -47,17 +86,7 @@ The agent will prefer a local broker when configured, and can also use a remote 
 - **local**: ws://localhost:8080/kadi
 - **remote**: wss://broker.dadavidtseng.com/kadi
 
-Broker URLs are read from config.toml ([broker.local] / [broker.remote]). The agent also reads Networks arrays from those sections for network resolution.
-
-### Secrets
-
-Secrets are provided via vaults (see config.toml [secrets] and secrets.toml for local encrypted values). The deploy profiles require the following vaults/keys:
-
-- anthropic: ANTHROPIC_API_KEY
-- model-manager: MODEL_MANAGER_API_KEY, MODEL_MANAGER_BASE_URL
-- arcadedb: ARCADE_USERNAME, ARCADE_PASSWORD
-
-In production deployments the image runs a kadi secret receive command to fetch the vaults before starting.
+Broker URLs are read from config.toml ([broker.local] / [broker.remote]). The agent also reads NETWORKS arrays from those sections for network resolution.
 
 ## Architecture
 
@@ -112,6 +141,13 @@ Notes:
 
 agent.json includes deploy profiles for local Docker-based runs:
 - do-programmer, do-artist, do-designer: run a single role container (image: agent-shadow-worker:0.1.2). Each profile sets AGENT_ROLE and maps a host playground volume.
+  - The container command uses: kadi secret receive --vault anthropic --vault model-manager --vault arcadedb && kadi run start:{role}
+  - Deploy profiles also set ARCADE_HOST and ARCADE_PORT environment variables (e.g. arcadedb.dadavidtseng.com:443) so the agent can connect to ArcadeDB if configured.
+  - Host volume mappings provided in the profiles are:
+    - ~/agent-playground-shadow-programmer:/app/playground
+    - ~/agent-playground-shadow-artist:/app/playground
+    - ~/agent-playground-shadow-designer:/app/playground
+
 - do-all: runs three containers (programmer, artist, designer) together.
 
 Each deploy profile expects the vaults listed in the Secrets section and delivers secrets via the broker (delivery: broker). The container command runs:
@@ -122,3 +158,5 @@ See agent.json -> deploy for the full configuration (images, env, volumes, resta
 ---
 
 If nothing else, run kadi run start and check your broker for registered topics and agent status.
+
+---

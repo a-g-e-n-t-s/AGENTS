@@ -26,8 +26,8 @@ Registered tools included with this agent:
 
 - create_release: Create a GitHub release with gh CLI — tags the repo, uploads the release zip, returns the release URL
 - package_release: Package DaemonAgent Run/ folder into a release zip (exe + DLLs + Data/, excludes Logs/Screenshots/.pdb)
-- rebuild_game: Full rebuild cycle: shut down game → MSBuild compile → relaunch → wait for KĀDI reconnect
-- restart_game: Restart the DaemonAgent game (kill → relaunch → wait for KĀDI reconnect, no rebuild)
+- rebuild_game: Full rebuild cycle: shut down game → MSBuild compile → relaunch → wait for KADI reconnect
+- restart_game: Restart the DaemonAgent game (kill → relaunch → wait for KADI reconnect, no rebuild)
 - shutdown_game: Shut down the running DaemonAgent game process
 
 Abilities:
@@ -116,4 +116,3 @@ Build flow:
 - Run with npm start or use npm run dev for live reload
 
 ---
-

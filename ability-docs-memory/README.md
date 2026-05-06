@@ -58,7 +58,10 @@ Primary configuration sources and fields:
     - `domain` — domain for docs (example: `localhost`)
     - `embedding_transport` — transport for embeddings (`api` or other)
     - `chat_transport` — transport for chat/extraction (`api` or other)
-  - [broker.remote] example settings: `URL`, `NETWORKS`, `MODE` (see `config.toml` in repo).
+  - [broker.remote] example settings (present in repo config.toml):
+    - `URL` — broker URL (example: `wss://broker.dadavidtseng.com/kadi`)
+    - `NETWORKS` — list of networks the ability should join (example: `["docs"]`)
+    - `MODE` — broker mode hint (example: `"native"`)
 
 - Environment
   - `BROKER_URL` — If set, overrides broker URL resolution. The runtime checks this env var first when connecting the internal `KadiClient`.
@@ -66,7 +69,7 @@ Primary configuration sources and fields:
 - Broker resolution behavior (implemented in `src/index.ts`):
   1. If `process.env.BROKER_URL` is set, it is used.
   2. Otherwise `agent.json` is searched for `defaultBroker` or the first key in `agent.json.brokers`.
-  3. If the broker entry is a string it's used as the URL; if an object with `url`/`URL` use that.
+  3. If the broker entry is a string it's used as the URL; if the broker entry is an object the runtime will use its `url` property (lowercase).
   4. If no broker is found, fallback: `ws://localhost:8080/kadi`.
 
 Important file paths referenced by the runtime:
@@ -152,7 +155,7 @@ or
 
 Notes
 -----
-- The package declares runtime dependencies in the source agent metadata: it relies on `ability-graph` and `secret-ability`.
+- The package declares runtime abilities in `agent.json`: it relies on `ability-graph` and `secret-ability`.
 - Schema for DocNode is located at `./lib/schema.js` (export `DOCNODE_SCHEMA`).
 - See `src/index.ts` for broker resolution logic, client creation, and ability/tool registration sequence.
 
@@ -191,7 +194,7 @@ kadi run start
 
 ### Brokers
 
-- **remote**: `wss://broker.dadavidtseng.com/kadi`
+- **remote**: `wss://broker.dadavidtseng.com/kadi` (see `config.toml` for broker `URL`, `NETWORKS`, and `MODE`)
 
 ## Architecture
 

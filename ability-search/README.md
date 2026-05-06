@@ -2,7 +2,7 @@
 > KADI ability providing chunking, embedding, and hybrid search over text content via 8 broker-callable tools.
 
 Overview
-This package (agent name: search-ability) is a KADI "ability" that provides chunking, embedding, and hybrid search over text content. It exposes eight broker-callable tools for indexing, querying, and collection inspection. All persistence is delegated to arcadedb-ability and all embeddings come from model-manager; search-ability acts as an intermediary and orchestrator.
+This package (agent name: ability-search) is a KADI "ability" that provides chunking, embedding, and hybrid search over text content. It exposes eight broker-callable tools for indexing, querying, and collection inspection. All persistence is delegated to arcadedb-ability and all embeddings come from model-manager; search-ability acts as an intermediary and orchestrator.
 
 Quick Start
 1. Clone the repo and install dependencies
@@ -10,6 +10,7 @@ Quick Start
 
 2. (Optional) Build the project (the agent expects dist/index.js as the entrypoint)
    npm run build
+   (build uses "npx tsc" as defined in agent.json)
 
 3. Install KADI runtime helpers (used by container/build scripts)
    kadi install
@@ -17,7 +18,10 @@ Quick Start
 4. Start the ability connected to the broker
    kadi run start
 
-Alternatively, to run directly (stdio mode useful for local debugging):
+Alternatively, for local development you can run the TypeScript source directly:
+   npm run dev
+
+Or run directly (stdio mode useful for local debugging):
    node dist/index.js stdio
 
 Notes:
@@ -116,11 +120,15 @@ Common commands
 
 - Build
   npm run build
-  (project should provide a build script to compile TypeScript into dist/)
+  (project build uses npx tsc)
 
 - Start (as defined in agent.json)
   npm run start
   (runs: node dist/index.js broker)
+
+- Development (run TS directly)
+  npm run dev
+  (runs: npx tsx src/index.ts)
 
 - Run via KADI (recommended runtime entry)
   kadi install
@@ -175,19 +183,4 @@ kadi run start
 ### Brokers
 
 - **local**: `ws://localhost:8080/kadi`
-- **remote**: `wss://broker.dadavidtseng.com/kadi`
-
-## Architecture
-
-<!-- TODO: Add Architecture content -->
-
-## Development
-
-```bash
-npm install
-npm run build
-kadi run start
-```
-
-
----
+- **remote**: `wss://broker.dadavidtseng.com/kadi

@@ -40,13 +40,12 @@ Tools
 | localtunnel | Lightweight tunneling provider (localtunnel.me) as an alternative to ngrok; supports requesting a subdomain. |
 | @kadi.build/core | Kadi core library used to integrate this ability with the AGENTS orchestration platform. |
 | fs-extra | Filesystem utilities used to read/write and manage temporary file storage. |
-| dotenv | Loads environment variables from .env for local configuration. |
 | chalk | Colored terminal output used for status/debug logs. |
 | debug | Structured debug logging used by the runtime. |
 
 Configuration
 -------------
-Configuration can be provided via environment variables (recommended) or by editing configuration files consumed by the runtime. The package expects an .env file to be present in development, and Kadi will inject environment variables in production.
+Configuration can be provided via environment variables (recommended) or by editing configuration files consumed by the runtime. Kadi will inject environment variables in production. For local development you may use a .env file with your preferred loader — the repository does not bundle dotenv as a dependency.
 
 Standard environment variables
 - REMOTE_PROVIDER
@@ -97,7 +96,7 @@ Additional configuration file: config.toml
     - NETWORKS (e.g., ["file"])
     - MODE (e.g., "native")
   - [tunnel]
-    - SERVICE — preferred tunnel service (e.g., "kadi")
+    - SERVICE — preferred tunnel service (the project configuration uses "kadi" by default)
     - FALLBACK_SERVICES — array of fallback services (e.g., ["ssh", "frpc"])
     - AUTO_FALLBACK — boolean to enable automatic fallback to alternatives
 
@@ -181,3 +180,5 @@ Notes and constraints
 License and support
 - See the repository root for license and contribution guidelines.
 - For issues related to Kadi integration, consult the Kadi documentation and the @kadi.build/core package.
+
+---

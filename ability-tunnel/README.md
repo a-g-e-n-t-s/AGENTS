@@ -43,9 +43,11 @@ npm start              # node dist/index.js
 
 | Field | Value |
 |-------|-------|
+| **Name** | ability-tunnel |
 | **Version** | 0.1.0 |
 | **Type** | ability |
 | **Entrypoint** | `dist/index.js` |
+| **Description** | Unified tunnel ability - exposes local services via kadi-tunnel, SSH, frpc, ngrok, serveo, localtunnel, pinggy, or localhost.run |
 
 ### config.toml
 
@@ -102,8 +104,9 @@ kadi run start
 ```
 
 Helpful scripts defined in package.json / agent.json:
+- npm run preflight — check Node.js version (runs: node --version)
 - npm run setup — installs deps and builds (npm install && npm run build)
-- npm run build — compile TypeScript to dist/
+- npm run build — compile TypeScript to dist/ (npx tsc)
 - npm start — runs node dist/index.js
 - npm run dev — runs index.ts via tsx for fast development
 - npm run serve — run in stdio mode: npx tsx index.ts stdio
@@ -113,3 +116,5 @@ Helpful scripts defined in package.json / agent.json:
 ---
 
 If no changes are necessary to your deployment, the existing quick start (kadi install; kadi run start) will continue to work — just ensure you build first (npm run build) or use npm run dev for development.
+
+---

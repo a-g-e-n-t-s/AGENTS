@@ -4,9 +4,7 @@ Comprehensive quest orchestration system with KĀDI broker integration, replacin
 
 ## Overview
 
-mcp-server-quest is an MCP (Model Context Protocol) server that provides **26 tools** for managing quests, tasks, agents, and approvals. It integrates with the KĀDI broker for event-driven multi-agent communication and supports approval workflows through Discord, Slack, and a web dashboard.
-
-Note: The dashboard UI is now served by the separate mcp-client-quest package. This server package focuses on bootstrapping the data layer (Git-backed quest data repository and built-in templates) and exposing MCP endpoints; it no longer serves the dashboard UI directly.
+mcp-server-quest is an MCP-related package that provides tooling for managing quests, tasks, agents, and approvals (tool implementations live in src/tools). IMPORTANT: this package now focuses on bootstrapping the data layer (Git-backed quest data repository and built-in templates) and initializing runtime templates. The entry point (src/index.ts) initializes the `.quest-data/` Git repo and built-in templates; it does not itself host the dashboard UI and does not automatically start an MCP HTTP server. The dashboard UI is served by the separate mcp-client-quest package or by a separate runtime that exposes MCP endpoints.
 
 ### Key Features
 
@@ -15,7 +13,7 @@ Note: The dashboard UI is now served by the separate mcp-client-quest package. T
 - **Multi-Channel Approvals**: Discord, Slack, and Dashboard integration (UI provided by mcp-client-quest)
 - **Task Orchestration**: Assign tasks to agents with dependency validation
 - **File-based Storage**: Git-versioned data in `.quest-data/`
-- **KĀDI Integration**: All agent MCP calls routed through broker
+- **KĀDI Integration**: Tool implementations use @modelcontextprotocol/sdk for broker interactions
 - **Data Layer Bootstrap**: Initializes Git repo and built-in quest templates on startup
 
 ## Installation
@@ -34,48 +32,50 @@ The project build configuration is set up to produce a production image from nod
 
 ### Start (production)
 
-Build (as above) then:
-
-```bash
-node dist/mcp-server.js
-```
-
-Alternatively, use the provided start script:
+Build (as above). Running the packaged start script will initialize the data layer and built-in templates:
 
 ```bash
 npm start
+# or
+node dist/mcp-server.js
 ```
 
-The packaged/containerized deployment exposes the MCP HTTP transport on port 3100 by default (see Configuration).
+Note: Running the start script (dist/mcp-server.js) runs the initialization (Git repo + templates) and graceful shutdown handlers. It does not, by itself, start an HTTP MCP transport or dashboard UI. To run a full MCP server that exposes HTTP transport and serves endpoints, use a runtime that wires the tool implementations into an MCP server or run a companion package that provides the transport layer.
 
 ### Development
 
-Development scripts may be present in the repository (e.g., using tsx or other tooling). The package ships TypeScript sources; run your usual dev tooling (e.g., tsx or nodemon) if available in your local setup.
+You can run the TypeScript sources directly with your preferred dev tooling (e.g., tsx or nodemon) to execute the initialization flow defined in src/index.ts:
+
+```bash
+# Example with tsx (if installed)
+npx tsx src/index.ts
+```
+
+For iterative development of the tools and integrations, run your dev server/process that wires the tools into an MCP transport when needed.
 
 ### Dashboard Access
 
-The dashboard is no longer served from this package. To access the UI, run the mcp-client-quest package which connects to this server's MCP endpoints (by default MCP transport over HTTP on port 3100).
+The dashboard UI is provided by the mcp-client-quest package. The client connects to an MCP transport endpoint (HTTP or broker) where an MCP server/runtime exposes the tool endpoints. This repository does not include the dashboard frontend.
 
 ## Architecture
 
 - **Node.js**: Built for Node 20 (container image uses node:20-alpine)
 - **TypeScript**: 5.3+ with strict mode
-- **MCP Protocol**: Standard tool invocation interface
-- **Express**: Server dependency for HTTP endpoints
-- **KĀDI Broker**: Event-driven agent communication via @modelcontextprotocol/sdk
-- MCP transport configuration is influenced by environment variables (MCP_TRANSPORT_TYPE, MCP_PORT)
+- **MCP Protocol**: Tool implementations use @modelcontextprotocol/sdk for broker-driven interactions
+- **Express**: Present as a dependency in the project, but this package's entry point focuses on data bootstrap rather than serving HTTP endpoints by default
+- Deploy/build behavior is configured via agent.json; deployments may expose an HTTP port for MCP transport (see Configuration)
 
 ## Project Structure
 
 ```
 mcp-server-quest/
 ├── src/
-│   ├── index.ts           # MCP server entry point (bootstraps data layer and templates)
-│   ├── tools/             # 26 MCP tool implementations
+│   ├── index.ts           # Entry point: bootstraps data layer and initializes templates
+│   ├── tools/             # MCP tool implementations
 │   ├── models/            # Quest, Task, Agent, Approval models (including TemplateModel)
 │   ├── prompts/           # Document generation prompts
 │   └── utils/             # Shared utilities (git repo init, config)
-├── .quest-data/           # Git-versioned quest data
+├── .quest-data/           # Git-versioned quest data (initialized at startup)
 └── tests/                 # Test files
 ```
 
@@ -129,7 +129,7 @@ Built to replace mcp-shrimp-task-manager with:
 - Improved task splitting with dependency validation
 - Data-layer initialization (Git repo + built-in templates)
 
-On startup the server initializes the Git-backed quest data directory and loads built-in templates (see src/index.ts). The dashboard frontend has been extracted to mcp-client-quest.
+On startup the package initializes the Git-backed quest data directory and loads built-in templates (see src/index.ts). The dashboard frontend has been extracted to mcp-client-quest.
 
 ## Configuration
 
@@ -145,17 +145,17 @@ Build configuration (used for image builds)
 - build.default.env: { "NODE_ENV": "production" }
 
 Deploy (example akash-mainnet target)
-- exposes port 3100 (mapped as MCP HTTP transport)
+- exposes port 3100 (mapped as service port)
 - env defaults in deploy: MCP_TRANSPORT_TYPE=http, MCP_PORT=3100, NODE_ENV=production
 - resources: cpu 0.5, memory 512Mi, ephemeralStorage 512Mi
 
 Runtime environment variables
-- MCP_TRANSPORT_TYPE: transport type (e.g., "http")
+- MCP_TRANSPORT_TYPE: transport type (e.g., "http") — deployments/runtimes that expose MCP endpoints may use this
 - MCP_PORT: HTTP port (default in deploy/config: 3100)
 - NODE_ENV: production/development
+
+Note: While the deployment configuration exposes port 3100 and provides MCP-related env defaults, this package's entry point focuses on data initialization. Running an MCP server that exposes HTTP endpoints requires wiring the tool implementations into an MCP transport/runtime.
 
 ## License
 
 MIT
-
----
