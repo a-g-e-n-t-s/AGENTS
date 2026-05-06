@@ -6,6 +6,7 @@
 
 import type { KadiClient } from '@kadi.build/core';
 import { SYSTEM_ASK, SYSTEM_EXAMPLE, SYSTEM_EXPLAIN, SYSTEM_GUIDE, SYSTEM_TDD } from './prompts/index.js';
+import { recallRelevantContext, storeExchange, archiveIfNeeded } from './lib/conversation-memory.js';
 
 // ── Configuration ─────────────────────────────────────────────────────
 
@@ -112,11 +113,13 @@ function buildContext(chunks: DocChunk[], max = 8): string {
 
 export async function formatAnswer(
   client: KadiClient, question: string, results: DocChunk[],
-  apiKey: string | undefined, model = DEFAULT_MODEL,
+  apiKey: string | undefined, model = DEFAULT_MODEL, memoryContext?: string | null,
 ) {
   const unique = dedupeChunks(results);
-  if (unique.length === 0) return { answer: "No relevant documentation found.", sources: [] };
-  const answer = await synthesize(client, SYSTEM_ASK, `Question: ${question}\n\n${buildContext(unique)}`, apiKey, model);
+  if (unique.length === 0 && !memoryContext) return { answer: "No relevant documentation found.", sources: [] };
+  const context = buildContext(unique);
+  const fullContext = memoryContext ? `${memoryContext}\n\n${context}` : context;
+  const answer = await synthesize(client, SYSTEM_ASK, `Question: ${question}\n\n${fullContext}`, apiKey, model);
   return { answer, sources: unique.map(c => ({ source: c.source, score: c.score })) };
 }
 
@@ -175,8 +178,19 @@ export function registerTools(client: any, secretCache: Record<string, string>):
   const apiKey = () => secretCache['MM-1_API_KEY'] ?? secretCache['MEMORY_API_KEY'];
 
   client.registerTool(
-    { name: 'ask-agents', description: 'Answer questions about the AGENTS ecosystem by searching docs and synthesizing with LLM.', input: { type: 'object', properties: { question: { type: 'string' }, model: { type: 'string' } }, required: ['question'] } },
-    async (input: any) => formatAnswer(client, input.question, await searchDocs(client, input.question), apiKey(), input.model),
+    { name: 'ask-agents', description: 'Answer questions about the AGENTS ecosystem by searching docs and synthesizing with LLM.', input: { type: 'object', properties: { question: { type: 'string' }, model: { type: 'string' }, conversationId: { type: 'string' } }, required: ['question'] } },
+    async (input: any) => {
+      const [docs, memory] = await Promise.all([
+        searchDocs(client, input.question),
+        recallRelevantContext(client, input.question),
+      ]);
+      const result = await formatAnswer(client, input.question, docs, apiKey(), input.model, memory);
+      storeExchange(client, input.question, result.answer, input.conversationId);
+      if (input.conversationId) {
+        archiveIfNeeded(client, input.conversationId, apiKey()).catch(() => {});
+      }
+      return result;
+    },
   );
 
   client.registerTool(
