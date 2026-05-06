@@ -1,15 +1,14 @@
 {
   "name": "ability-docs-memory",
   "type": "ability",
-  "version": "0.0.1",
+  "version": "0.0.3",
   "description": "Documentation search engine built on graph-ability — crawls, chunks, indexes, and searches documentation with 4-signal hybrid recall including structural navigation",
   "entrypoint": "dist/index.js",
   "abilities": {
-    "graph-ability": "^0.0.7",
+    "ability-graph": "^0.1.2",
     "secret-ability": "^0.9.4"
   },
   "brokers": {
-    "local": "ws://localhost:8080/kadi",
     "remote": "wss://broker.dadavidtseng.com/kadi"
   },
   "scripts": {

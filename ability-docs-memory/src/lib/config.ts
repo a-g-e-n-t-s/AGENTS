@@ -2,15 +2,14 @@
  * Configuration loader for ability-docs-memory.
  *
  * Resolution order (highest wins):
- *   1. Environment variables  (DOCS_DATABASE, MEMORY_API_KEY, ...)
- *   2. Vault "models"         (MEMORY_API_KEY, MEMORY_API_URL)
- *   3. `config.yml` file      (walk-up from CWD — docs section)
- *   4. Built-in defaults (AGENTS-specific)
+ *   1. Environment variables  (DOCS_DATABASE, MODEL_MANAGER_API_KEY, ...)
+ *   2. Vault "model-manager"  (MODEL_MANAGER_BASE_URL, MODEL_MANAGER_API_KEY)
+ *   3. `config.toml` file     (walk-up from CWD — [docs] section)
+ *   4. Built-in defaults
  */
 
 import { existsSync, readFileSync } from 'fs';
 import { dirname, join } from 'path';
-import { load } from 'js-yaml';
 
 let configLogged = false;
 
@@ -30,10 +29,53 @@ export interface DocsConfig {
   chatTransport: Transport;
 }
 
-export const VAULT_NAME = 'models';
-export const VAULT_KEYS = ['MEMORY_API_KEY', 'MEMORY_API_URL'] as const;
+export const VAULT_NAME = 'model-manager';
+export const VAULT_KEYS = ['MODEL_MANAGER_BASE_URL', 'MODEL_MANAGER_API_KEY'] as const;
 
-function findConfigFile(filename = 'config.yml'): string | null {
+// ── Lightweight TOML parser ───────────────────────────────────────────
+
+function parseTomlValue(raw: string): unknown {
+  if (raw === 'true') return true;
+  if (raw === 'false') return false;
+  if (/^-?\d+$/.test(raw)) return parseInt(raw, 10);
+  if (/^-?\d+\.\d+$/.test(raw)) return parseFloat(raw);
+  if (raw.startsWith('"') && raw.endsWith('"')) return raw.slice(1, -1);
+  if (raw.startsWith("'") && raw.endsWith("'")) return raw.slice(1, -1);
+  if (raw.startsWith('[') && raw.endsWith(']')) {
+    return raw.slice(1, -1).split(',').map(s => parseTomlValue(s.trim()));
+  }
+  return raw;
+}
+
+function parseSimpleToml(content: string): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+  let currentSection = '';
+
+  for (const rawLine of content.split('\n')) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith('#')) continue;
+
+    const sectionMatch = line.match(/^\[([a-zA-Z0-9._-]+)\]$/);
+    if (sectionMatch) {
+      currentSection = sectionMatch[1];
+      continue;
+    }
+
+    const kvMatch = line.match(/^([a-zA-Z0-9_-]+)\s*=\s*(.+)$/);
+    if (!kvMatch) continue;
+
+    const key = kvMatch[1];
+    const rawValue = kvMatch[2].trim();
+    const fullKey = currentSection ? `${currentSection}.${key}` : key;
+    result[fullKey] = parseTomlValue(rawValue);
+  }
+
+  return result;
+}
+
+// ── Config file discovery ─────────────────────────────────────────────
+
+function findConfigFile(filename = 'config.toml'): string | null {
   let dir = process.cwd();
   while (true) {
     const candidate = join(dir, filename);
@@ -50,18 +92,29 @@ function loadConfigSection(): Record<string, unknown> {
   if (!configPath) {
     if (!configLogged) {
       configLogged = true;
-      console.warn('[ability-docs-memory] No config.yml found — using env vars / vault only');
+      console.warn('[ability-docs-memory] No config.toml found — using env vars / vault only');
     }
     return {};
   }
 
   if (!configLogged) {
     configLogged = true;
-    console.log(`[ability-docs-memory] config.yml loaded from ${configPath}`);
+    console.log(`[ability-docs-memory] config.toml loaded from ${configPath}`);
   }
-  const parsed = load(readFileSync(configPath, 'utf8')) as Record<string, unknown>;
-  return (parsed?.docs as Record<string, unknown>) ?? {};
+
+  const content = readFileSync(configPath, 'utf8');
+  const flat = parseSimpleToml(content);
+
+  const section: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(flat)) {
+    if (key.startsWith('docs.')) {
+      section[key.slice('docs.'.length)] = value;
+    }
+  }
+  return section;
 }
+
+// ── Vault loading ─────────────────────────────────────────────────────
 
 export async function loadFromVault(client: any): Promise<Record<string, string>> {
   const credentials: Record<string, string> = {};
@@ -76,13 +129,22 @@ export async function loadFromVault(client: any): Promise<Record<string, string>
           credentials[key] = result.value;
         }
       } catch {
-        // Key not present in vault
+        // Key not present
       }
     }
 
+    // Normalize to internal key names
+    if (credentials['MODEL_MANAGER_BASE_URL']) {
+      credentials['MEMORY_API_URL'] = credentials['MODEL_MANAGER_BASE_URL'];
+    }
+    if (credentials['MODEL_MANAGER_API_KEY']) {
+      credentials['MEMORY_API_KEY'] = credentials['MODEL_MANAGER_API_KEY'];
+    }
+
     await secrets.disconnect();
+    const found = Object.keys(credentials).filter(k => VAULT_KEYS.includes(k as any)).length;
     console.log(
-      `[ability-docs-memory] Vault "${VAULT_NAME}" loaded — ${Object.keys(credentials).length}/${VAULT_KEYS.length} keys found`,
+      `[ability-docs-memory] Vault "${VAULT_NAME}" loaded — ${found}/${VAULT_KEYS.length} keys found`,
     );
   } catch (err: any) {
     console.warn('[ability-docs-memory] secret-ability not available — using env vars / config only');
@@ -91,6 +153,8 @@ export async function loadFromVault(client: any): Promise<Record<string, string>
 
   return credentials;
 }
+
+// ── Config builder ────────────────────────────────────────────────────
 
 export function loadDocsConfig(): DocsConfig {
   return buildConfig({});
@@ -116,12 +180,10 @@ function buildConfig(vault: Record<string, string>): DocsConfig {
       'agents-docs',
     embeddingModel:
       process.env.DOCS_EMBEDDING_MODEL ??
-      process.env.MEMORY_EMBEDDING_MODEL ??
       (file.embedding_model as string) ??
       'text-embedding-3-small',
     extractionModel:
       process.env.DOCS_EXTRACTION_MODEL ??
-      process.env.MEMORY_EXTRACTION_MODEL ??
       (file.extraction_model as string) ??
       'gpt-5-nano',
     maxTokens:
@@ -146,12 +208,10 @@ function buildConfig(vault: Record<string, string>): DocsConfig {
       undefined,
     embeddingTransport:
       (process.env.DOCS_EMBEDDING_TRANSPORT ??
-        process.env.MEMORY_EMBEDDING_TRANSPORT ??
         (file.embedding_transport as string) ??
         'api') as Transport,
     chatTransport:
       (process.env.DOCS_CHAT_TRANSPORT ??
-        process.env.MEMORY_CHAT_TRANSPORT ??
         (file.chat_transport as string) ??
         'api') as Transport,
   };

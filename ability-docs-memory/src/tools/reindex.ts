@@ -1,26 +1,20 @@
 /**
  * docs-reindex tool — Full documentation reindexing pipeline.
  *
- * Pipeline: crawl pages → chunk → for each chunk:
- *   call graph-batch-store with vertexType='DocNode'.
- *   Creates NEXT_SECTION edges between sequential chunks.
- *   Creates REFERENCES edges for cross-doc links.
- *   Uses inline processing (NOT background jobs by default).
+ * Pipeline: crawl pages → delegate chunking to graph-index → create edges.
  *
- * This is application-level batching — each vertex is its own graph-command
- * inside graph-ability. NOT arcade-batch.
+ * Uses ability-graph's graph-index tool for chunk+embed+store (consolidation),
+ * then creates NextSection and References edges for graph traversal.
  */
 
 import { KadiClient, z } from '@kadi.build/core';
 
 import type { DocsConfig } from '../lib/config.js';
 import type { SignalAbilities } from '../lib/graph-types.js';
-import { chunkByMarkdownHeaders, type DocChunk } from '../lib/chunker.js';
 import {
   type PageDocument,
   splitIntoPages,
   parseLlmsTxt,
-  slugFromHeading,
 } from '../lib/crawler.js';
 import { extractCrossDocReferences } from '../lib/references.js';
 
@@ -108,31 +102,52 @@ export function registerReindexTool(
           }
         }
 
-        // ── Step 3: Chunk all pages ────────────────────────────────────
-        console.error(`[docs-reindex] Step 3: Chunking ${pages.length} pages (maxTokens=${config.maxTokens})…`);
+        // ── Step 3: Index pages via graph-index ──────────────────────────
+        //
+        // Delegates chunking + embedding + storage to ability-graph's graph-index tool.
+        // Returns per-page chunk RIDs for edge creation.
 
-        interface ChunkWithMeta extends DocChunk {
-          slug: string;
-          title: string;
-          pageUrl: string;
-          source: string;
-        }
+        console.error(`[docs-reindex] Step 3: Indexing ${pages.length} pages via graph-index…`);
 
-        const allChunks: ChunkWithMeta[] = [];
+        const pageChunkRids = new Map<string, string[]>();
+        let totalChunks = 0;
+
         for (const page of pages) {
-          const chunks = chunkByMarkdownHeaders(page.content, config.maxTokens);
-          for (const chunk of chunks) {
-            allChunks.push({
-              ...chunk,
-              slug: page.slug,
+          const indexResult = await abilities.invoke<{
+            success: boolean;
+            indexed?: number;
+            chunks?: Array<{ rid: string; chunkIndex: number; tokens: number }>;
+            error?: string;
+          }>('graph-index', {
+            content: page.content,
+            vertexType: 'DocNode',
+            strategy: 'markdown-headers',
+            maxTokens: config.maxTokens,
+            database: config.database,
+            source: page.source,
+            collection,
+            properties: {
               title: page.title,
+              slug: page.slug,
               pageUrl: page.pageUrl,
-              source: page.source,
-            });
+              indexedAt: new Date().toISOString(),
+            },
+          });
+
+          if (indexResult.success && indexResult.chunks) {
+            const rids = indexResult.chunks
+              .sort((a, b) => a.chunkIndex - b.chunkIndex)
+              .map(c => c.rid);
+            pageChunkRids.set(page.slug, rids);
+            totalChunks += indexResult.indexed ?? 0;
+          } else {
+            console.warn(`[docs-reindex] Failed to index page "${page.slug}": ${indexResult.error ?? 'unknown'}`);
           }
         }
 
-        if (allChunks.length === 0) {
+        console.error(`[docs-reindex] Step 3 done: ${totalChunks} chunks across ${pages.length} pages`);
+
+        if (totalChunks === 0) {
           return {
             success: true,
             stats: { docNodes: 0, pages: pages.length, chunks: 0 },
@@ -140,152 +155,30 @@ export function registerReindexTool(
           };
         }
 
-        console.error(`[docs-reindex] Step 3 done: ${allChunks.length} chunks across ${pages.length} pages`);
+        // ── Step 4: Create NextSection edges ──────────────────────────────
 
-        // ── Step 4: Build batch items with NextSection edges ──────────
-
-        // Group chunks by slug to determine NextSection within each page
-        const chunksBySlug = new Map<string, ChunkWithMeta[]>();
-        for (const chunk of allChunks) {
-          if (!chunksBySlug.has(chunk.slug)) {
-            chunksBySlug.set(chunk.slug, []);
-          }
-          chunksBySlug.get(chunk.slug)!.push(chunk);
-        }
-
-        // Build unique dedup key combining slug + chunkIndex
-        const batchItems = allChunks.map((chunk) => {
-          const dedupSlug = `${chunk.slug}__chunk_${chunk.chunkIndex}`;
-
-          return {
-            content: chunk.content,
-            vertexType: 'DocNode',
-            properties: {
-              source: chunk.source,
-              title: chunk.title,
-              slug: dedupSlug,
-              pageUrl: chunk.pageUrl,
-              collection,
-              chunkIndex: chunk.chunkIndex,
-              totalChunks: chunk.totalChunks,
-              tokens: chunk.tokens,
-              importance: 0.5, // Will be updated by extraction
-              metadata: chunk.metadata,
-              indexedAt: new Date().toISOString(),
-            },
-            // NOTE: Edges are created in post-batch steps (5b, 6) because
-            // batch-store processes items sequentially — forward-referencing
-            // edges (NextSection to chunk N+1) would fail since the target
-            // vertex doesn't exist yet.
-            skipExtraction: input.skipExtraction,
-          };
-        });
-
-        // ── Step 5: Batch store via graph-ability ──────────────────────
-
-        console.error(`[docs-reindex] Step 5: Sending ${batchItems.length} items to graph-batch-store (db=${config.database})…`);
-        console.log(`[docs-reindex] Sending ${batchItems.length} items to graph-batch-store (db=${config.database})`);
-        console.log(`[docs-reindex] First item vertexType=${batchItems[0]?.vertexType}, props keys=${Object.keys(batchItems[0]?.properties ?? {})}`);
-
-        const batchStart = Date.now();
-
-        // Only use dedup when NOT clearing — avoids unnecessary graph-query
-        // calls during the dedup check. When clearExisting is true (default),
-        // the collection was already wiped so no duplicates can exist.
-        const useDedup = input.clearExisting === false;
-
-        const batchResult = await abilities.invoke<Record<string, unknown>>('graph-batch-store', {
-          items: batchItems,
-          database: config.database,
-          ...(useDedup
-            ? { deduplicateBy: ['slug', 'collection'], onDuplicate: 'replace' }
-            : {}),
-        });
-
-        // Validate batch result
-        const batchStored = (batchResult?.stored as number) ?? 0;
-        const batchFailed = (batchResult?.failed as number) ?? 0;
-        const batchSkipped = (batchResult?.skipped as number) ?? 0;
-        const batchErrors = (batchResult?.errors as Array<{ index: number; error: string }>) ?? [];
-
-        console.error(`[docs-reindex] Step 5 done: stored=${batchStored}, skipped=${batchSkipped}, failed=${batchFailed} (${Date.now() - batchStart}ms)`);
-        console.log(`[docs-reindex] Batch result: stored=${batchStored}, skipped=${batchSkipped}, failed=${batchFailed}, errors=${batchErrors.length}`);
-        if (batchErrors.length > 0) {
-          console.warn(`[docs-reindex] First 3 errors:`, JSON.stringify(batchErrors.slice(0, 3)));
-        }
-
-        if (batchStored === 0 && batchFailed > 0) {
-          return {
-            success: false,
-            error: `[docs-reindex] All ${batchFailed} chunks failed to store. First error: ${batchErrors[0]?.error ?? 'unknown'}`,
-            stats: {
-              pages: pages.length,
-              chunks: allChunks.length,
-              stored: batchStored,
-              failed: batchFailed,
-              errors: batchErrors.slice(0, 5),
-            },
-            tool: 'docs-reindex',
-            durationMs: Date.now() - startTime,
-          };
-        }
-
-        // ── Step 5b: Create NextSection edges between consecutive chunks ─
-        //
-        // Must happen AFTER batch-store so all target vertices exist.
-        // Query each page's chunks ordered by chunkIndex, then create edges
-        // between consecutive pairs.
-
-        console.error(`[docs-reindex] Step 5b: Creating NextSection edges for ${chunksBySlug.size} pages…`);
+        console.error(`[docs-reindex] Step 4: Creating NextSection edges…`);
         let nextSectionCreated = 0;
 
-        for (const [pageSlug] of chunksBySlug.entries()) {
-          try {
-            const chunksResult = await abilities.invoke<{
-              success: boolean;
-              result?: Array<Record<string, unknown>>;
-            }>('graph-query', {
-              database: config.database,
-              query:
-                `SELECT @rid, chunkIndex FROM DocNode` +
-                ` WHERE slug LIKE '${escapeSimple(pageSlug)}__chunk_%'` +
-                ` AND collection = '${escapeSimple(collection)}'` +
-                ` ORDER BY chunkIndex ASC`,
-            });
-
-            if (!chunksResult.success || !chunksResult.result || chunksResult.result.length < 2) {
-              continue;
+        for (const [, rids] of pageChunkRids.entries()) {
+          for (let i = 0; i < rids.length - 1; i++) {
+            try {
+              await abilities.invoke('graph-command', {
+                database: config.database,
+                command: `CREATE EDGE NextSection FROM ${rids[i]} TO ${rids[i + 1]}`,
+              });
+              nextSectionCreated++;
+            } catch {
+              // Non-fatal
             }
-
-            const dbChunks = chunksResult.result;
-            for (let i = 0; i < dbChunks.length - 1; i++) {
-              const fromRid = dbChunks[i]['@rid'] as string;
-              const toRid = dbChunks[i + 1]['@rid'] as string;
-              if (!fromRid || !toRid) continue;
-
-              try {
-                await abilities.invoke('graph-command', {
-                  database: config.database,
-                  command: `CREATE EDGE NextSection FROM ${fromRid} TO ${toRid}`,
-                });
-                nextSectionCreated++;
-              } catch {
-                // Non-fatal — continue
-              }
-            }
-          } catch {
-            // Non-fatal — skip this page's edges
           }
         }
 
-        console.error(`[docs-reindex] Step 5b done: ${nextSectionCreated} NextSection edges`);
+        console.error(`[docs-reindex] Step 4 done: ${nextSectionCreated} NextSection edges`);
 
-        // ── Step 6: Create References edges for cross-doc links ───────
-        //
-        // Resolve source/target slugs → RIDs via graph-query, then create
-        // edges via graph-command (graph-relate requires RIDs, not queries).
+        // ── Step 5: Create References edges for cross-doc links ───────
 
-        console.error(`[docs-reindex] Step 6: Creating References edges for cross-doc links…`);
+        console.error(`[docs-reindex] Step 5: Creating References edges for cross-doc links…`);
         const knownSlugs = new Set(pages.map((p) => p.slug));
         let referencesCreated = 0;
 
@@ -296,46 +189,15 @@ export function registerReindexTool(
             if (!ref.resolved) continue;
 
             try {
-              const sourceSlug = `${page.slug}__chunk_0`;
-              const targetSlug = `${ref.targetSlug}__chunk_0`;
+              // Get first chunk RID for source and target pages
+              const sourceRids = pageChunkRids.get(page.slug);
+              const targetRids = pageChunkRids.get(ref.targetSlug!);
 
-              // Resolve source RID
-              const sourceResult = await abilities.invoke<{
-                success: boolean;
-                result?: Array<Record<string, unknown>>;
-              }>('graph-query', {
-                database: config.database,
-                query:
-                  `SELECT @rid FROM DocNode` +
-                  ` WHERE slug = '${escapeSimple(sourceSlug)}'` +
-                  ` AND collection = '${escapeSimple(collection)}'` +
-                  ` LIMIT 1`,
-              });
-
-              // Resolve target RID
-              const targetResult = await abilities.invoke<{
-                success: boolean;
-                result?: Array<Record<string, unknown>>;
-              }>('graph-query', {
-                database: config.database,
-                query:
-                  `SELECT @rid FROM DocNode` +
-                  ` WHERE slug = '${escapeSimple(targetSlug)}'` +
-                  ` AND collection = '${escapeSimple(collection)}'` +
-                  ` LIMIT 1`,
-              });
-
-              const sourceRid = sourceResult.result?.[0]?.['@rid'] as string | undefined;
-              const targetRid = targetResult.result?.[0]?.['@rid'] as string | undefined;
-
-              if (!sourceRid || !targetRid) {
-                console.warn(`[docs-reindex] References edge skipped: source=${sourceSlug}(${sourceRid ?? 'not found'}) → target=${targetSlug}(${targetRid ?? 'not found'})`);
-                continue;
-              }
+              if (!sourceRids?.[0] || !targetRids?.[0]) continue;
 
               await abilities.invoke('graph-command', {
                 database: config.database,
-                command: `CREATE EDGE References FROM ${sourceRid} TO ${targetRid} SET linkText = '${escapeSimple(ref.linkText)}', sourceSlug = '${escapeSimple(page.slug)}'`,
+                command: `CREATE EDGE References FROM ${sourceRids[0]} TO ${targetRids[0]} SET linkText = '${escapeSimple(ref.linkText)}', sourceSlug = '${escapeSimple(page.slug)}'`,
               });
               referencesCreated++;
             } catch (err: unknown) {
@@ -345,17 +207,16 @@ export function registerReindexTool(
           }
         }
 
-        console.error(`[docs-reindex] Step 6 done: ${referencesCreated} References edges`);
-        console.error(`[docs-reindex] Complete: ${allChunks.length} chunks, ${nextSectionCreated} NextSection, ${referencesCreated} References (${Date.now() - startTime}ms)`);
+        console.error(`[docs-reindex] Step 5 done: ${referencesCreated} References edges`);
+        console.error(`[docs-reindex] Complete: ${totalChunks} chunks, ${nextSectionCreated} NextSection, ${referencesCreated} References (${Date.now() - startTime}ms)`);
 
         return {
           success: true,
           stats: {
             pages: pages.length,
-            chunks: allChunks.length,
+            chunks: totalChunks,
             nextSectionEdges: nextSectionCreated,
             referencesEdges: referencesCreated,
-            ...(batchResult as Record<string, unknown>),
           },
           collection,
           durationMs: Date.now() - startTime,

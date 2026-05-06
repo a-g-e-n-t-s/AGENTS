@@ -84,14 +84,14 @@ const client = new KadiClient({
 console.log('[ability-docs-memory] Loading configuration…');
 const config: DocsConfig = await loadDocsConfigWithVault(client);
 
-console.log('[ability-docs-memory] Loading graph-ability…');
+console.log('[ability-docs-memory] Loading ability-graph…');
 let graphAbility: LoadedAbility | null = null;
 try {
-  graphAbility = await client.loadNative('graph-ability', { timeout: 0 });
-  console.log('[ability-docs-memory] graph-ability loaded');
+  graphAbility = await client.loadNative('ability-graph', { timeout: 0 });
+  console.log('[ability-docs-memory] ability-graph loaded');
 } catch (err: any) {
   console.warn(
-    '[ability-docs-memory] graph-ability native load failed, continuing:',
+    '[ability-docs-memory] ability-graph native load failed, continuing:',
     err?.message ?? err,
   );
 }
@@ -100,7 +100,7 @@ const LONG_RUNNING_TOOLS = new Set(['graph-batch-store']);
 const abilities: SignalAbilities = {
   invoke: <T>(tool: string, params: Record<string, unknown>) => {
     if (!graphAbility) {
-      throw new Error('graph-ability not loaded — cannot invoke tools');
+      throw new Error('ability-graph not loaded — cannot invoke tools');
     }
     const opts = LONG_RUNNING_TOOLS.has(tool) ? { timeout: 0 } : undefined;
     return graphAbility.invoke<T>(tool, params, opts);
@@ -189,14 +189,6 @@ export default client;
 
 export { DOCNODE_SCHEMA, DOCNODE_VERTEX, NEXT_SECTION_EDGE, REFERENCES_EDGE } from './lib/schema.js';
 export { loadDocsConfig, loadDocsConfigWithVault, type DocsConfig } from './lib/config.js';
-export {
-  chunkByMarkdownHeaders,
-  estimateTokens,
-  splitIntoMarkdownSections,
-  splitAtSentenceBoundary,
-  splitToFitTokenLimit,
-  type DocChunk,
-} from './lib/chunker.js';
 export {
   parseLlmsTxt,
   slugFromUrl,
