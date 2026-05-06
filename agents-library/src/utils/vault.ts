@@ -91,6 +91,13 @@ export async function loadVaultCredentials(): Promise<VaultCredentials> {
     );
   }
 
+  // Fallback: fill any missing keys from process.env
+  for (const key of vaultKeys) {
+    if (!credentials[key] && process.env[key]) {
+      credentials[key] = process.env[key]!;
+    }
+  }
+
   return credentials;
 }
 
