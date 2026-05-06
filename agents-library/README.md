@@ -10,11 +10,13 @@ Key exports (source files referenced)
   - BaseBot, BaseBotConfig — ./base-bot.js
   - BaseAgent, BaseAgentConfig, BaseAgentProviderConfig, BaseAgentMemoryConfig — ./base-agent.js
   - KadiEventPublisher, PublisherConfig, validateTopicPattern — ./kadi-event-publisher.js
-  - logger, MODULE_AGENT, MODULE_SLACK_BOT, MODULE_DISCORD_BOT, MODULE_TASK_HANDLER, MODULE_TOOLS — ./utils/logger.js
+  - logger, setLogLevel, setAgentTag, setLogTransport, MODULE_AGENT, MODULE_SLACK_BOT, MODULE_DISCORD_BOT, MODULE_TASK_HANDLER, MODULE_TOOLS — ./utils/logger.js
   - timer, Timer — ./utils/timer.js
   - isWsl, toNativePath — ./utils/path-utils.js
   - loadVaultCredentials, loadModelManagerCredentials, VaultCredentials, ModelManagerCredentials — ./utils/vault.js
   - loadConfig, registerConfigMapping, LoadConfigResult — ./utils/config.js
+  - loadDirective, DirectiveContext, DirectiveExport — ./utils/directive.js
+  - Config, readConfig, readConfigFile — ./utils/read-config.js
 - Factories and agent helpers
   - WorkerAgentFactory, BaseWorkerAgent, createWorkerAgent
   - ShadowAgentFactory, BaseShadowAgent, createShadowAgent, ShadowAgentConfigSchema
@@ -35,7 +37,7 @@ kadi install
 kadi run start
 
 Notes:
-- Use a .env file for local secrets (dotenv is a dependency). Typical environment variables consumed by helpers include KADI_BROKER_URL, KADI_BROKER_RETRY, VAULT_TOKEN, MODEL_MANAGER_TOKEN, and CLAUDE_API_KEY (Anthropic SDK).
+- Use a .env file for local secrets (dotenv is a dependency). Typical environment variables consumed by helpers include KADI_BROKER_URL, KADI_BROKER_RETRY, VAULT_TOKEN, MODEL_MANAGER_TOKEN, and CLAUDE_API_KEY (Anthropic/Claude SDK via @anthropic-ai/sdk).
 - Source entry point: src/index.ts — exports are implemented in the corresponding compiled files (e.g., ./base-bot.js, ./kadi-event-publisher.js).
 
 Tools
@@ -58,7 +60,9 @@ Tools
 | publishToolEvent | Standardized publisher helper for emitting tool-related events to the KĀDI broker. |
 | classifyToolError | Error classifier to label transient vs permanent failures and drive retry logic. |
 | isToolSuccess / isToolFailure | Type guards for tool invocation results. |
-| logger | Central logger with module constants (MODULE_AGENT, MODULE_TOOLS, etc.). |
+| logger | Central logger with module constants (MODULE_AGENT, MODULE_TOOLS, etc.), and runtime helpers setLogLevel, setAgentTag, setLogTransport (./utils/logger.js). |
+| loadDirective | Helper to load and execute directive exports for custom behaviors (./utils/directive.js). |
+| readConfig / readConfigFile / Config | Utilities for reading structured config files and runtime config (./utils/read-config.js). |
 
 Configuration
 -------------
@@ -97,11 +101,13 @@ Common config types and fields
 Loading and validation
 - loadConfig(...) from ./utils/config.js returns LoadConfigResult (typed).
 - registerConfigMapping(...) allows mapping file-based config to typed structures.
+- readConfig/readConfigFile and Config from ./utils/read-config.js provide helpers for reading structured config files (JSON/YAML).
+- loadDirective(...) from ./utils/directive.js loads directive modules/exports used to extend agent behavior.
 - ShadowAgentConfigSchema (Zod) enforces required shadow agent fields.
 
 Secrets and credentials
 - loadVaultCredentials(...) and loadModelManagerCredentials(...) in ./utils/vault.js read credentials from Vault or environment variables. Common env vars: VAULT_TOKEN, VAULT_ADDR, MODEL_MANAGER_TOKEN.
-- Claude integration expects the Anthropick/Anthropic SDK credential via CLAUDE_API_KEY or equivalent environment variable (per your infra).
+- Claude integration expects the Anthropic/Claude SDK credential via CLAUDE_API_KEY and uses @anthropic-ai/sdk as the client library.
 
 Architecture
 ------------
@@ -121,7 +127,7 @@ Key components
 - Worker/Shadow factories — encapsulate lifecycle and wiring for agents
 - invokeShrimTool / publishToolEvent — standard interfaces between agent code and shrimp task manager tools
 - Orchestration helpers — orchestrateWithClaude that handles tool-invocation orchestration together with Claude responses
-- Utilities — logger, timer, path helpers, config & vault loaders
+- Utilities — logger (with setLogLevel, setAgentTag, setLogTransport), timer, path helpers, config & vault loaders, directive loader, and read-config helpers
 
 Development
 -----------
@@ -129,7 +135,7 @@ Repository layout (relevant source files)
 - src/index.ts — package exports and public API surface
 - src/base-bot.ts, src/base-agent.ts — core classes
 - src/kadi-event-publisher.ts — broker publisher
-- src/utils/* — logger.js, timer.js, path-utils.js, vault.js, config.js
+- src/utils/* — logger.ts, timer.ts, path-utils.ts, vault.ts, config.ts, directive.ts, read-config.ts
 - tests/ — unit tests (if present)
 
 Install & build
@@ -153,8 +159,10 @@ Linting / formatting
 Local development tips
 - Use .env with dotenv for local environment variables.
 - Use loadVaultCredentials and loadModelManagerCredentials to source secrets in development; fallback to environment variables when Vault is not available.
-- Inspect logger module constants (MODULE_AGENT, MODULE_TOOLS, etc.) to tag logs consistently across agents.
+- Inspect logger module helpers (setLogLevel, setAgentTag, setLogTransport) and module constants (MODULE_AGENT, MODULE_TOOLS, etc.) to tag and control logs consistently across agents.
 - Use ShadowAgentConfigSchema to validate shadow agent configuration before starting the agent.
+- Use loadDirective to load custom directive modules that extend agent behaviors at runtime.
+- Use readConfig/readConfigFile for structured JSON/YAML config files.
 
 Contributing
 ------------
@@ -164,15 +172,3 @@ Contributing
 
 License and governance
 - This file documents the package usage and development conventions. Follow your organization's publishing and release processes for package versioning and deployment.
-
-## Quick Start
-
-<!-- TODO: Add Quick Start content -->
-
-## Configuration
-
-<!-- TODO: Add Configuration content -->
-
-## Development
-
-<!-- TODO: Add Development content -->

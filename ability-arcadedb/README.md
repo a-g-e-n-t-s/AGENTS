@@ -7,7 +7,7 @@ Overview
 - It groups container lifecycle, database management, query/command execution, data import/export, and backup/restore into 17 tools.
 - Entry point: dist/index.js
 - Agent manifest: agent.json
-- Broker endpoints declared in agent.json: default (wss://broker.dadavidtseng.com/kadi), local (ws://localhost:8080/kadi), remote (wss://broker.dadavidtseng.com/kadi)
+- Broker endpoint declared in agent.json: remote (wss://broker.dadavidtseng.com/kadi)
 
 Quick Start
 1. Clone the repository and install dependencies
@@ -56,14 +56,13 @@ Configuration
   - A local config loader: loadArcadeConfig() (src/lib/config.js) — reads runtime ArcadeDB connection settings if present.
 
 - Important environment variables (used in build/deploy and at runtime)
-  - ARCADE_HOST — host name for ArcadeDB (default in build: arcadedb.kadi.build)
-  - ARCADE_PORT — port for ArcadeDB (default in build: 80)
+  - ARCADE_HOST — host name for ArcadeDB (build default: localhost)
+  - ARCADE_PORT — port for ArcadeDB (build default: 2480)
   - ARCADEDB_HOME — path to the ArcadeDB home inside the container (/home/arcadedb)
   - ARCADE_USERNAME — ArcadeDB username (required in deploy configurations)
   - ARCADE_PASSWORD — ArcadeDB password (required in deploy configurations)
   - JAVA_HOME — Java runtime location (build: /opt/java/openjdk)
   - PATH — ensures java bin is on PATH in build image
-  - BROKER_URL — broker endpoint override (production uses wss://broker.dadavidtseng.com/kadi)
   - KADI_TUNNEL_TOKEN — token used by tunnel services for backup/restore file sharing
   - KADI_DEPLOY_MODE — build/deploy mode (example: container)
 
@@ -91,7 +90,7 @@ Architecture
   - ArcadeHttpClient (src/lib/http-client.js): encapsulates HTTP interactions with the ArcadeDB REST API for queries, commands, import/export, and health checks.
   - Managers (src/lib/arcade-admin.js -> createManagers): responsible for container/process control, database administration operations, and orchestrating multi-step actions (backup lifecycle, import/export orchestration).
   - File-sharing and Tunnel Services (@kadi.build/file-sharing, @kadi.build/tunnel-services): used by backup/restore to make backup artifacts available to remote callers and to fetch remote backup files.
-  - Broker network: the Kadi broker(s) declared in agent.json (default/local/remote) act as the RPC transport for tool invocations.
+  - Broker network: the Kadi broker declared in agent.json (remote) acts as the RPC transport for tool invocations.
 
 - Data flow (typical scenarios)
   - Tool invocation: a client calls a named tool via the KADI broker -> KadiClient receives request -> tool handler executes using managers and/or ArcadeHttpClient -> results/URLs/status are returned to caller.
@@ -102,14 +101,17 @@ Architecture
 
 Development
 - Common scripts (defined in agent.json)
-  - npm run preflight — echo "Setting up ArcadeDB ability..."
-  - npm run setup — runs npm install && npm run build (project-specific build assumed)
-  - npm run start — node dist/index.js broker (starts the compiled agent in broker mode)
+  - npm run preflight — node --version
+  - npm run setup — npm install && npm run build
+  - npm run build — npx tsc
+  - npm run start — node dist/index.js broker
+  - npm run dev — npx tsx src/index.ts
+  - npm run clean — rm -rf node_modules abilities agent-lock.json package-lock.json dist
 
 - Build and run (development iteration)
   1. Install dependencies:
      - npm ci
-  2. Build (project should provide a build script that compiles TypeScript to dist/):
+  2. Build:
      - npm run build
   3. Install kadi helper abilities if needed:
      - kadi install kadi-install
@@ -117,6 +119,8 @@ Development
      - kadi install kadi-secret
   4. Run locally:
      - node dist/index.js broker
+     - or use the dev helper to run TypeScript directly:
+       - npm run dev
      - or use kadi runner:
        - kadi run start
 
@@ -162,18 +166,16 @@ kadi run start
 
 | Field | Value |
 |-------|-------|
-| **Version** | 0.1.1 |
+| **Version** | 0.1.7 |
 | **Type** | ability |
 | **Entrypoint** | `dist/index.js` |
 
 ### Abilities
 
-- `secret-ability` ^0.9.0
+- `secret-ability` *
 
 ### Brokers
 
-- **default**: `wss://broker.dadavidtseng.com/kadi`
-- **local**: `ws://localhost:8080/kadi`
 - **remote**: `wss://broker.dadavidtseng.com/kadi`
 
 ## Architecture
@@ -185,5 +187,6 @@ kadi run start
 ```bash
 npm install
 npm run build
+npm run dev
 kadi run start
 ```

@@ -22,7 +22,7 @@ Alternatively, to run directly (stdio mode useful for local debugging):
 
 Notes:
 - The agent.json defines scripts: "setup" runs npm install && npm run build and "start" runs node dist/index.js broker.
-- Broker URL resolution follows this order: BROKER_URL env var → agent.json.brokers.default.
+- Broker URL resolution follows this order: BROKER_URL env var → agent.json.brokers.remote → agent.json.brokers.default → agent.json.brokers.local. If none are present the agent will throw an error on start (see src/index.ts; it recommends setting BROKER_URL or adding brokers.remote to agent.json).
 
 Tools
 | Tool | Description |
@@ -39,7 +39,7 @@ Tools
 Configuration
 Files and resolution
 - agent.json — present at the project root (see agent.json in repository). Used to expose broker defaults, scripts, build and deploy metadata.
-- config.yml — standard KADI config walk-up (search-ability loads configuration via loadSearchConfigWithVault). Place configuration in a config.yml file located at the repo root or a parent directory.
+- config.toml — standard KADI config walk-up (search-ability loads configuration via loadSearchConfigWithVault). Place configuration in a config.toml file located at the repo root or a parent directory.
 - secrets.toml — secrets stored in the vault named "models" (walk-up). Vault keys are delivered via broker in deployment flows.
 - Environment variables override config and secrets where applicable.
 
@@ -57,13 +57,13 @@ Required secrets (declared in agent.json deploy blocks)
 Broker resolution
 - The broker URL is resolved in src/index.ts using:
   1. BROKER_URL environment variable
-  2. agent.json → brokers.default (string or object with url)
-- If neither is present, the agent will throw an error on start.
+  2. agent.json → brokers.remote (preferred) → brokers.default → brokers.local
+- If none are present, the agent will throw an error on start and suggest setting BROKER_URL or adding brokers.remote to agent.json.
 
 Architecture
 Key components
 - src/index.ts — entrypoint. Builds a KadiClient, loads configuration and vault-based secrets, registers tools, connects to the broker, and ensures the ArcadeDB database/schema exists.
-- lib/config.js — exposes loadSearchConfigWithVault used to read config.yml + secrets vault.
+- lib/config.js — exposes loadSearchConfigWithVault used to read config.toml + secrets vault.
 - lib/schema.js — exposes ensureDatabase which ensures ArcadeDB database and schema (called at startup; tools will lazily ensure schema on first request if arcadedb-ability is unavailable).
 - tools/*.js — three tool registration modules:
   - tools/index-tools.js — registers indexing tools (search-index, search-index-file, search-reindex, search-delete).
@@ -140,10 +140,10 @@ Container / deploy
 
 Contributing
 - Follow the existing tool registration pattern in src/index.ts and the tools/*-tools.js modules.
-- Keep config keys backward-compatible and document new config fields in config.yml.
+- Keep config keys backward-compatible and document new config fields in config.toml.
 - Register new external ability interactions centrally (lib/config.js, lib/schema.js) to keep startup validation consistent.
 
-If you need more examples (tool inputs/outputs, config.yml sample, or CI/build helpers) say which area you want and I will add concrete examples and snippets.
+If you need more examples (tool inputs/outputs, config.toml sample, or CI/build helpers) say which area you want and I will add concrete examples and snippets.
 
 ## Quick Start
 
@@ -156,7 +156,7 @@ kadi run start
 
 ## Tools
 
-<!-- TODO: Add Tools content -->
+<!-- Tools are documented above in the Tools table. -->
 
 ## Configuration
 
@@ -170,12 +170,12 @@ kadi run start
 
 ### Abilities
 
-- `secret-ability` ^0.9.0
+- `secret-ability` ^0.9.4
 
 ### Brokers
 
-- **default**: `wss://broker.kadi.build/kadi`
 - **local**: `ws://localhost:8080/kadi`
+- **remote**: `wss://broker.dadavidtseng.com/kadi`
 
 ## Architecture
 
@@ -188,3 +188,6 @@ npm install
 npm run build
 kadi run start
 ```
+
+
+---

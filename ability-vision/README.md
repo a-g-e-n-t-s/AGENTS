@@ -3,7 +3,7 @@
 
 Overview
 --------
-ability-vision is a kadi-ability that provides vision analysis and image understanding via multimodal large language models (e.g., Anthropic Claude multimodal and OpenAI GPT-4V). It exposes a Kadi-compatible entrypoint (index.ts) and integrates with the KADI orchestration runtime to accept image inputs, run model-based analysis, and return structured interpretations.
+ability-vision is a kadi-ability that provides vision analysis and image understanding via multimodal large language models. It exposes a Kadi-compatible entrypoint (dist/index.js compiled from index.ts) and integrates with the Kadi orchestration runtime to accept image inputs, run model-based analysis, and return structured interpretations.
 
 Quick Start
 -----------
@@ -14,12 +14,12 @@ Quick Start
 - `npm i -g @kadi.build/cli` (optional, if you don't already have the kadi CLI)
 - `kadi install`
 
-3. Start the ability locally:
-- `kadi run start`
+3. Build and start the ability locally:
+- `npm run setup` (runs `npm install && npm run build`)
+- `npm run start` (runs `node dist/index.js`)
 
-Alternative direct start using the package scripts in agent.json:
-- `npm run setup` (runs `npm install`)
-- `npm run start` (runs `npx tsx index.ts`)
+Alternative direct start / development:
+- `npm run dev` (runs `npx tsx index.ts` for iterative development)
 - `npm run serve` (runs `npx tsx index.ts stdio`)
 - `npm run serve:broker` (runs `npx tsx index.ts broker`)
 
@@ -27,54 +27,63 @@ Tools
 -----
 | Tool | Description |
 |------|-------------|
-| Claude (multimodal) | Anthropic Claude multimodal model used for image+text understanding (configured via CLAUDE_API_KEY). |
-| GPT-4V | OpenAI GPT-4 Vision model for visual question answering and image analysis (configured via OPENAI_API_KEY). |
-| secret-ability | Declared ability dependency from agent.json ("secret-ability": "^0.9.4") — consumed by this package at runtime. |
+| Claude (multimodal) | Primary multimodal model configured via config.toml (VISION_MODEL). Secrets should be placed in secrets.toml or your secret vault. |
+| secret-ability | Declared ability dependency from agent.json (`"secret-ability": "*"`) — consumed at runtime by this package. |
 | @kadi.build/core | Kadi core runtime package used to register ability handlers and communicate with the Kadi broker. |
-| dotenv | Loads environment variables from a .env file into process.env. |
-| tsx | Lightweight TypeScript runtime used to run index.ts during development and local execution. |
+| tsx | Lightweight TypeScript runtime used for development and to run index.ts when using `dev`/`serve`. |
+| TypeScript | Project is compiled to dist/ via `npx tsc` (build step is required for `npm run start`). |
 
 Configuration
 -------------
 Key project files:
 - `agent.json` — package metadata and declared ability dependencies (present in repo root).
-- `index.ts` — main entrypoint referenced by agent.json (entrypoint for Kadi runtime).
-- `.env` — environment variables (create at repo root).
+- `index.ts` — TypeScript source entrypoint (compiled to `dist/index.js`).
+- `dist/index.js` — compiled runtime entrypoint referenced by `agent.json`.
+- `config.toml` — runtime configuration (broker URL, model settings).
+- `secrets.toml` — encrypted vault for secrets (do not check into source control).
 
-Relevant fields in agent.json:
+Relevant fields in agent.json (notable entries):
 - `name` — "ability-vision"
-- `version` — semantic version
-- `description` — short description shown in registries
-- `entrypoint` — `"index.ts"` (file executed by the ability process)
-- `scripts` — useful npm script shortcuts: `preflight`, `setup`, `start`, `serve`, `serve:broker`, `clean`
-- `abilities` — ability-level dependencies, e.g. `"secret-ability": "^0.9.4"`
+- `type` — "ability"
+- `version` — "0.1.0"
+- `entrypoint` — `"dist/index.js"` (compiled output executed by the ability process)
+- `scripts` — includes `preflight`, `setup`, `build`, `start`, `dev`, `serve`, `serve:broker`, `clean`
+- `abilities` — ability-level dependencies, e.g. `"secret-ability": "*"`
 
-Environment variables (create a `.env` file at repo root). Typical variables used by the ability:
-- `CLAUDE_API_KEY` — API key for Anthropic Claude multimodal (if used)
-- `OPENAI_API_KEY` — API key for OpenAI GPT-4V (if used)
-- `KADI_BROKER_URL` — WebSocket URL for Kadi broker (e.g., `ws://localhost:9229`) — used when running in broker mode
-- `PORT` — optional port for local HTTP/stdio wrappers (if implemented)
-- `LOG_LEVEL` — optional log verbosity (info|debug|warn|error)
+Configuration files
+- config.toml (example taken from repo):
+  ```
+  [broker.local]
+  URL = "ws://localhost:8080/kadi"
+  NETWORKS = ["vision"]
+  MODE = "native"
 
-Example .env (place in repo root):
-CLAUDE_API_KEY=your_claude_api_key
-OPENAI_API_KEY=your_openai_api_key
-KADI_BROKER_URL=ws://localhost:9229
-LOG_LEVEL=info
+  [model]
+  MANAGER_BASE_URL = ""
+  VISION_MODEL = "claude-sonnet-4-20250514"
+  MAX_TOKENS = 4096
+  ```
+- secrets.toml — put API keys and other secrets here (encrypted vault expected in production).
+
+Notes on env vars and secrets
+- This project uses config.toml for broker and model configuration and expects secrets to be stored in secrets.toml (or a secure secret store). The previous .env/dotenv pattern is not required by the repository layout provided here; follow your deployment's secret management conventions.
 
 Runtime modes and scripts (from agent.json):
-- `npm run start` — runs `npx tsx index.ts` (default runtime)
-- `npm run serve` — runs `npx tsx index.ts stdio` (stdio transport for local testing)
-- `npm run serve:broker` — runs `npx tsx index.ts broker` (connect to Kadi broker)
-- `npm run setup` — runs `npm install`
-- `npm run clean` — removes node_modules and package-lock.json
+- `npm run setup` — installs deps and runs `npm run build`
+- `npm run build` — compiles TypeScript to `dist/` (`npx tsc`)
+- `npm run start` — runs `node dist/index.js` (production / compiled runtime)
+- `npm run dev` — runs `npx tsx index.ts` (development mode)
+- `npm run serve` — runs `npx tsx index.ts stdio` (stdio transport for testing)
+- `npm run serve:broker` — runs `npx tsx index.ts broker` (connect to broker per config.toml)
+- `npm run preflight` — prints Node version (`node --version`)
+- `npm run clean` — removes node_modules, abilities, agent-lock.json, package-lock.json and `dist`
 
 Architecture
 ------------
 Data flow
 1. Input (image + optional prompt or metadata) arrives via one of the transports:
    - stdio transport (`serve`) for local testing
-   - broker transport (`serve:broker`) via Kadi broker (KADI_BROKER_URL)
+   - broker transport (`serve:broker`) via Kadi broker (configured in `config.toml`)
    - direct invocation when used as a nested ability
 
 2. Preprocessing
@@ -82,9 +91,9 @@ Data flow
    - Optional metadata (prompt, boxes, language) is parsed.
 
 3. Model invocation
-   - The ability selects one or more multimodal LLM clients (Claude, GPT-4V) based on configuration or request hints.
-   - Image and prompt are forwarded to the LLM client(s) in the expected multimodal API format.
-   - The ability handles authentication using CLAUDE_API_KEY or OPENAI_API_KEY from environment variables.
+   - The ability selects a multimodal LLM client based on configuration (e.g., the VISION_MODEL defined in `config.toml`).
+   - Image and prompt are forwarded to the model client in the expected API format.
+   - Authentication and secrets are expected to be resolved from `secrets.toml` or your secret manager.
 
 4. Postprocessing
    - Raw model output is parsed into structured response objects (labels, bounding boxes, captions, confidence scores).
@@ -94,25 +103,25 @@ Data flow
    - The structured result is returned to the caller over the same transport (stdio, broker, or direct SDK call).
 
 Key components
-- index.ts — entrypoint that registers ability handlers with @kadi.build/core runtime and wires transports (stdio or broker).
-- Model clients — lightweight adapters encapsulating calls to Claude and GPT-4V APIs.
-- Preprocessor / Postprocessor modules — input normalization and output shaping code.
-- Configuration loader — uses dotenv to load environment variables and validate keys at startup.
-- Ability dependency resolver — uses agent.json abilities block to discover/consume other kadi abilities (e.g., secret-ability).
+- `index.ts` — TypeScript source entrypoint that registers ability handlers with @kadi.build/core and wires transports.
+- `dist/index.js` — compiled runtime entrypoint executed in production (`node dist/index.js`).
+- `config.toml` / `secrets.toml` — configuration and secrets.
+- Model client adapters — encapsulate model API calls according to configured VISION_MODEL.
 
 Development
 -----------
 Local setup
-1. Install deps:
-- `npm run setup` (runs `npm install`)
+1. Install deps and build:
+- `npm run setup` (runs `npm install && npm run build`)
 
 2. Validate Node.js:
-- `npm run preflight` will print Node version (script configured as `node --version`).
+- `npm run preflight` will print Node version.
 
 Running locally
-- `npm run start` — runs `npx tsx index.ts` (standalone)
+- `npm run dev` — runs `npx tsx index.ts` (development/interactive)
+- `npm run start` — runs `node dist/index.js` (compiled runtime; ensure `npm run build` has been run)
 - `npm run serve` — runs `npx tsx index.ts stdio` (stdio transport for testing)
-- `npm run serve:broker` — runs `npx tsx index.ts broker` (connects to broker at KADI_BROKER_URL)
+- `npm run serve:broker` — runs `npx tsx index.ts broker` (connects to broker at URL configured in `config.toml`)
 
 Kadi CLI
 - If using the Kadi orchestration ecosystem, install and use the kadi CLI:
@@ -122,54 +131,41 @@ Kadi CLI
 
 Testing and debugging
 - Use the stdio mode (`npm run serve`) to exercise the ability with local test harnesses that write requests to stdin and read responses from stdout.
-- Enable verbose logs by setting `LOG_LEVEL=debug` in your `.env` file.
+- Enable verbose logs per your environment or runtime configuration; logging configuration is implementation-specific.
 
 Cleaning and housekeeping
-- `npm run clean` — removes node_modules and package-lock.json
-- Keep agent.json updated with version and ability dependency constraints.
+- `npm run clean` — removes build artifacts and node_modules; also removes `dist` and lock files as configured.
+- Keep `agent.json` and `config.toml` updated with versions and runtime configuration.
 
 Notes and best practices
-- Keep your API keys out of source control; use .env locally and a secure secret store in production.
-- Validate image sizes and formats before sending binary payloads to LLM APIs to control cost and latency.
-- Use the `abilities` block in agent.json to declare and pin other kadi abilities this package relies on (e.g., secret-ability).
-
-If you need additional examples of request/response payloads, transport adapters, or model client implementations, consult the source index.ts and the @kadi.build/core documentation in your environment.
+- Keep your secrets out of source control; use `secrets.toml` and an encrypted vault for production.
+- Validate image sizes and formats before sending binary payloads to model APIs to control cost and latency.
+- Use the `abilities` block in `agent.json` to declare and pin other kadi abilities this package relies on (e.g., `secret-ability`).
 
 ## Quick Start
 
 ```bash
 cd ability-vision
 npm install
+npm run setup
 kadi install
 kadi run start
 ```
 
 ## Tools
 
-<!-- TODO: Add Tools content -->
-
-## Configuration
-
-### agent.json
-
-| Field | Value |
-|-------|-------|
-| **Version** | 1.0.0 |
-| **Type** | N/A |
-| **Entrypoint** | `index.ts` |
-
-### Abilities
-
-- `secret-ability` ^0.9.4
+- See the Tools table above — primary runtime is compiled Node (`dist/index.js`) with development assistance from `tsx` and build tooling via TypeScript. Model configuration is managed in `config.toml`.
 
 ## Architecture
 
-<!-- TODO: Add Architecture content -->
+- See the Architecture section above for data flow and key components.
 
 ## Development
 
 ```bash
 npm install
-npm run build
+npm run setup
 kadi run start
 ```
+
+---

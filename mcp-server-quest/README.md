@@ -6,72 +6,84 @@ Comprehensive quest orchestration system with KĀDI broker integration, replacin
 
 mcp-server-quest is an MCP (Model Context Protocol) server that provides **26 tools** for managing quests, tasks, agents, and approvals. It integrates with the KĀDI broker for event-driven multi-agent communication and supports approval workflows through Discord, Slack, and a web dashboard.
 
+Note: The dashboard UI is now served by the separate mcp-client-quest package. This server package focuses on bootstrapping the data layer (Git-backed quest data repository and built-in templates) and exposing MCP endpoints; it no longer serves the dashboard UI directly.
+
 ### Key Features
 
 - **Quest Management**: Create, revise, and manage quests with automatic task splitting
 - **Two-Tier Approval**: Quest-level and task-level approval gates
-- **Multi-Channel Approvals**: Discord, Slack, and Dashboard integration
+- **Multi-Channel Approvals**: Discord, Slack, and Dashboard integration (UI provided by mcp-client-quest)
 - **Task Orchestration**: Assign tasks to agents with dependency validation
-- **Real-time Dashboard**: WebSocket-based updates on port 8888
 - **File-based Storage**: Git-versioned data in `.quest-data/`
 - **KĀDI Integration**: All agent MCP calls routed through broker
+- **Data Layer Bootstrap**: Initializes Git repo and built-in quest templates on startup
 
 ## Installation
 
 ```bash
 # Install dependencies
-npm install
+npm ci
 
-# Build the project
-npm run build
+# Build the project (TypeScript)
+npx tsc
 ```
+
+The project build configuration is set up to produce a production image from node:20-alpine (see agent.json build section).
 
 ## Quick Start
 
-### Development Mode
+### Start (production)
+
+Build (as above) then:
 
 ```bash
-npm run dev
+node dist/mcp-server.js
 ```
 
-The server will start in watch mode, automatically reloading on file changes.
-
-### Production Mode
+Alternatively, use the provided start script:
 
 ```bash
-npm run build
 npm start
 ```
 
+The packaged/containerized deployment exposes the MCP HTTP transport on port 3100 by default (see Configuration).
+
+### Development
+
+Development scripts may be present in the repository (e.g., using tsx or other tooling). The package ships TypeScript sources; run your usual dev tooling (e.g., tsx or nodemon) if available in your local setup.
+
 ### Dashboard Access
 
-The dashboard will be available at `http://localhost:8888` after starting the server.
+The dashboard is no longer served from this package. To access the UI, run the mcp-client-quest package which connects to this server's MCP endpoints (by default MCP transport over HTTP on port 3100).
 
 ## Architecture
 
-- **Node.js**: 18.0.0 or higher required
+- **Node.js**: Built for Node 20 (container image uses node:20-alpine)
 - **TypeScript**: 5.3+ with strict mode
 - **MCP Protocol**: Standard tool invocation interface
-- **Fastify**: High-performance web framework for dashboard
-- **KĀDI Broker**: Event-driven agent communication
-- **Anthropic SDK**: Claude API for document generation
+- **Express**: Server dependency for HTTP endpoints
+- **KĀDI Broker**: Event-driven agent communication via @modelcontextprotocol/sdk
+- MCP transport configuration is influenced by environment variables (MCP_TRANSPORT_TYPE, MCP_PORT)
 
 ## Project Structure
 
 ```
 mcp-server-quest/
 ├── src/
-│   ├── index.ts           # MCP server entry point
+│   ├── index.ts           # MCP server entry point (bootstraps data layer and templates)
 │   ├── tools/             # 26 MCP tool implementations
-│   ├── models/            # Quest, Task, Agent, Approval models
-│   ├── dashboard/         # Fastify server and WebSocket handlers
+│   ├── models/            # Quest, Task, Agent, Approval models (including TemplateModel)
 │   ├── prompts/           # Document generation prompts
-│   └── utils/             # Shared utilities
+│   └── utils/             # Shared utilities (git repo init, config)
 ├── .quest-data/           # Git-versioned quest data
 └── tests/                 # Test files
 ```
 
+Note: The dashboard UI and WebSocket client are provided by the mcp-client-quest package; this repository initializes the quest data repo and built-in templates (see src/index.ts).
+
 ## MCP Tools (26 total)
+
+(unchanged — tool list retained in source)
 
 ### Agent Management (4)
 - `quest_register_agent`: Register an agent with capabilities
@@ -115,17 +127,35 @@ Built to replace mcp-shrimp-task-manager with:
 - Enhanced approval workflow (Discord/Slack/Dashboard)
 - Document-driven development (requirements.md, design.md)
 - Improved task splitting with dependency validation
-- Real-time dashboard updates via WebSocket
+- Data-layer initialization (Git repo + built-in templates)
+
+On startup the server initializes the Git-backed quest data directory and loads built-in templates (see src/index.ts). The dashboard frontend has been extracted to mcp-client-quest.
+
+## Configuration
+
+agent.json highlights (located at project root)
+
+- name: mcp-server-quest
+- version: 0.1.0
+- scripts.start: node dist/mcp-server.js
+
+Build configuration (used for image builds)
+- build.default.from: node:20-alpine
+- build.default.run: ["npm ci --include=dev", "npx tsc", "npm prune --omit=dev"]
+- build.default.env: { "NODE_ENV": "production" }
+
+Deploy (example akash-mainnet target)
+- exposes port 3100 (mapped as MCP HTTP transport)
+- env defaults in deploy: MCP_TRANSPORT_TYPE=http, MCP_PORT=3100, NODE_ENV=production
+- resources: cpu 0.5, memory 512Mi, ephemeralStorage 512Mi
+
+Runtime environment variables
+- MCP_TRANSPORT_TYPE: transport type (e.g., "http")
+- MCP_PORT: HTTP port (default in deploy/config: 3100)
+- NODE_ENV: production/development
 
 ## License
 
 MIT
 
-## Configuration
-
-### agent.json
-
-| Field | Value |
-|-------|-------|
-| **Version** | 0.1.0 |
-| **Type** | N/A |
+---

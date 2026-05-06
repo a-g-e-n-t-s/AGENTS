@@ -17,11 +17,13 @@ Quick Start
 `kadi run start`
 
 Alternative local run methods:
-- Use the packaged start script (defined in agent.json):
+- Use the packaged start/setup scripts (defined in agent.json):
 `npm run setup`  (runs `npm install && npm run build`)  
 `npm start`      (runs `node dist/index.js broker`)
 
 - Run TypeScript source directly for development (requires `tsx`):
+`npm run dev`    (runs `npx tsx src/index.ts`)  
+or
 `npx tsx src/index.ts`
 
 Tools
@@ -36,13 +38,27 @@ Tools
 Configuration
 -------------
 Primary configuration sources and fields:
+
 - agent.json (package root)
-  - `name` (string) — ability name, default read by the ability client (example: `"ability-docs-memory"`).
-  - `version` (string) — ability version.
+  - `name` (string) — ability name, read by the ability client (example: `"ability-docs-memory"`).
+  - `version` (string) — ability version (current: 0.0.3).
   - `entrypoint` (string) — runtime entry file (`dist/index.js`).
-  - `abilities` (object) — declared dependent abilities (e.g. `"graph-ability": "^0.0.7"`, `"secret-ability": "^0.9.0"`).
-  - `brokers` (object) — broker definitions e.g. `"local": "ws://localhost:8080/kadi"`.
-  - `scripts.setup` and `scripts.start` are provided (`setup` runs install+build, `start` runs packaged entrypoint).
+  - `abilities` (object) — declared dependent abilities (e.g. `"ability-graph": "^0.1.2"`, `"secret-ability": "^0.9.4"`).
+  - `brokers` (object) — broker definitions (example in repo: `"remote": "wss://broker.dadavidtseng.com/kadi"`).
+  - `scripts.setup`, `scripts.build`, `scripts.start`, `scripts.dev`, etc. (`setup` runs install+build, `build` runs `npx tsc`, `start` runs packaged entrypoint).
+
+- config.toml (optional config file shipped in repo)
+  - [docs] section — docs-related configuration fields:
+    - `database` — default database (example: `agents_memory`)
+    - `default_collection` — default collection (example: `agents-docs`)
+    - `embedding_model` — embedding model (example: `text-embedding-3-small`)
+    - `extraction_model` — extraction/chat model (example: `gpt-5-nano`)
+    - `max_tokens` — token cap for extraction (example: `500`)
+    - `base_url` — base URL for local doc server (example: `http://localhost:3333`)
+    - `domain` — domain for docs (example: `localhost`)
+    - `embedding_transport` — transport for embeddings (`api` or other)
+    - `chat_transport` — transport for chat/extraction (`api` or other)
+  - [broker.remote] example settings: `URL`, `NETWORKS`, `MODE` (see `config.toml` in repo).
 
 - Environment
   - `BROKER_URL` — If set, overrides broker URL resolution. The runtime checks this env var first when connecting the internal `KadiClient`.
@@ -50,15 +66,12 @@ Primary configuration sources and fields:
 - Broker resolution behavior (implemented in `src/index.ts`):
   1. If `process.env.BROKER_URL` is set, it is used.
   2. Otherwise `agent.json` is searched for `defaultBroker` or the first key in `agent.json.brokers`.
-  3. If no broker is found, fallback: `ws://localhost:8080/kadi`.
-
-- Docs configuration (loaded via `loadDocsConfigWithVault` in `./lib/config.js`):
-  - Default collection: `agents-docs`
-  - Default database: `agents_memory`
-  - The config loader supports integration with Vault via `secret-ability` for secret-managed credentials (see `loadDocsConfigWithVault` in `src/index.ts`).
+  3. If the broker entry is a string it's used as the URL; if an object with `url`/`URL` use that.
+  4. If no broker is found, fallback: `ws://localhost:8080/kadi`.
 
 Important file paths referenced by the runtime:
 - `agent.json` — package metadata + broker settings (root).
+- `config.toml` — ability config file (optional) with docs and broker sections.
 - `dist/index.js` — compiled entrypoint (packaged runtime).
 - `src/index.ts` — runtime bootstrap and client setup.
 - `./lib/config.js` — docs configuration loader (uses Vault integration).
@@ -76,10 +89,10 @@ High-level data flow and key components:
   - The ability constructs a `KadiClient` (from `@kadi.build/core`) using the name/version from `agent.json` and a resolved broker URL. This client is used to load native abilities and to register/invoke tools.
 
 - Config loader (`loadDocsConfigWithVault`)
-  - Loads documentation configuration and optionally fetches secrets via `secret-ability` (Vault) to supply credentials or protected settings.
+  - Loads documentation configuration and optionally fetches secrets via `secret-ability` (Vault) to supply credentials or protected settings. See `./lib/config.js` and the repo `config.toml` example.
 
-- Graph ability (`graph-ability`)
-  - The ability attempts to `client.loadNative('graph-ability')` to access a graph database API for creating vertices, edges, and indexes. If native load fails, the ability continues — tools will run but may operate remotely via broker-invoked graph-ability.
+- Graph ability (`ability-graph`)
+  - The ability attempts to `client.loadNative('ability-graph')` to access a graph database API for creating vertices, edges, and indexes. If native load fails, the ability continues — tools will run but may operate remotely via broker-invoked graph services.
 
 - Crawler & Chunker (docs-reindex)
   - docs-reindex implements the full pipeline: crawl documentation pages, chunk each page by markdown headings (creating smaller semantic units), and produce DocNode vertices for each chunk.
@@ -99,10 +112,14 @@ High-level data flow and key components:
   - The search tool (`docs-search`) integrates these 4 signals to produce hybrid recall results with structural navigation support (e.g., navigate to `NEXT_SECTION` and follow `REFERENCES`).
 
 - Tools
-  - Tools are registered from `./tools/*.js` and exposed via the Kadi broker for remote invocation or invoked directly when loaded as a native library.
+  - Tools are registered from `./tools/*.js` and exposed via the Kadi broker for remote invocation or invoked directly when loaded as a native library. See `src/index.ts` for registration calls:
+    - `registerSearchTool` (./tools/search.js)
+    - `registerReindexTool` (./tools/reindex.js)
+    - `registerPageTool` (./tools/page.js)
+    - `registerIndexStatusTool` (./tools/index-status.js)
 
 Key runtime behaviors:
-- The ability will try to load `graph-ability` natively. If that fails it continues but logs a warning and may rely on broker-based access to graph services.
+- The ability will try to load `ability-graph` natively. If that fails it continues but logs a warning and may rely on broker-based access to graph services.
 - The `LONG_RUNNING_TOOLS` set includes `'graph-batch-store'` so the runtime treats that tool as long-lived and keeps it available for asynchronous batch indexing jobs.
 
 Development
@@ -111,13 +128,18 @@ Local development tips and commands:
 - Install dependencies:
 `npm install`
 
-- Set up (agent.json provides a `setup` script):
-`npm run setup`  (runs `npm install && npm run build` — ensure a `build` script / tsc step exists in your repo)
+- Set up (agent.json provides a `setup` script which runs install+build):
+`npm run setup`
+
+- Build:
+`npm run build`  (runs `npx tsc`)
 
 - Run packaged ability:
 `npm start`  (runs `node dist/index.js broker` per `agent.json`)
 
-- Run from source for rapid iteration (no build required):
+- Run from source for rapid iteration:
+`npm run dev`  (runs `npx tsx src/index.ts`)  
+or
 `npx tsx src/index.ts`
 
 - Useful environment variables:
@@ -125,20 +147,16 @@ Local development tips and commands:
   - `NODE_ENV` — runtime environment.
 
 - Registering and testing tools:
-  - Tools are registered in `src/index.ts` via calls to:
-    - `registerSearchTool` (./tools/search.js)
-    - `registerReindexTool` (./tools/reindex.js)
-    - `registerPageTool` (./tools/page.js)
-    - `registerIndexStatusTool` (./tools/index-status.js)
+  - Tools are registered in `src/index.ts` via calls to the register functions listed above.
   - Use `client.invoke('docs-search', { ... })` or the Kadi CLI to call tools remotely.
 
 Notes
 -----
-- The package declares runtime dependencies in the source agent metadata: it relies on `graph-ability` and `secret-ability`.
+- The package declares runtime dependencies in the source agent metadata: it relies on `ability-graph` and `secret-ability`.
 - Schema for DocNode is located at `./lib/schema.js` (export `DOCNODE_SCHEMA`).
 - See `src/index.ts` for broker resolution logic, client creation, and ability/tool registration sequence.
 
-If you need examples of payloads for `docs-search`, `docs-reindex`, or other tools, or a sample docs config file (`docs.yml`/`docs.json`) tuned for your documentation site, tell me which target documentation source and I will provide an example config and example tool invocation.
+If you need examples of payloads for `docs-search`, `docs-reindex`, or other tools, or a sample docs config file (`config.toml`/`docs.yml`/`docs.json`) tuned for your documentation site, tell me which target documentation source and I will provide an example config and example tool invocation.
 
 ## Quick Start
 
@@ -151,7 +169,10 @@ kadi run start
 
 ## Tools
 
-<!-- TODO: Add Tools content -->
+- docs-search: Search documentation using 4-signal hybrid recall (semantic, keyword, graph, structural).
+- docs-reindex: Reindex documentation into the graph database. Crawls pages, chunks by markdown headings, and batch-stores DocNodes.
+- docs-page: Fetch a single documentation page by slug. Returns all chunks of the page.
+- docs-index-status: Get documentation index statistics: total DocNodes, counts by collection, health and last indexed time.
 
 ## Configuration
 
@@ -159,22 +180,22 @@ kadi run start
 
 | Field | Value |
 |-------|-------|
-| **Version** | 0.0.1 |
+| **Version** | 0.0.3 |
 | **Type** | ability |
 | **Entrypoint** | `dist/index.js` |
 
 ### Abilities
 
-- `graph-ability` ^0.0.7
-- `secret-ability` ^0.9.0
+- `ability-graph` ^0.1.2
+- `secret-ability` ^0.9.4
 
 ### Brokers
 
-- **local**: `ws://localhost:8080/kadi`
+- **remote**: `wss://broker.dadavidtseng.com/kadi`
 
 ## Architecture
 
-<!-- TODO: Add Architecture content -->
+See "Architecture" section above and `src/index.ts` for implementation details and the registration of the tools.
 
 ## Development
 
@@ -183,3 +204,5 @@ npm install
 npm run build
 kadi run start
 ```
+
+---

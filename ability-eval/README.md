@@ -3,7 +3,7 @@
 
 Overview
 --------
-ability-eval is a kadi-ability that evaluates code diffs, test results, runtime logs and behavior traces to produce assessment results for multi-agent orchestration. It is implemented as a TypeScript entrypoint (index.ts) and integrates with the Kadi runtime via @kadi.build/core. The package uses dotenv for runtime configuration and tsx for lightweight TypeScript execution.
+ability-eval is a kadi-ability implemented in TypeScript. The source entrypoint is index.ts (compiled to dist/index.js for runtime) and it integrates with the Kadi runtime via @kadi.build/core. The package uses tsx for lightweight TypeScript execution in development. Runtime configuration is provided via agent.json and config.toml.
 
 Quick Start
 -----------
@@ -12,107 +12,124 @@ Quick Start
 npm install
 ```
 
-2. Install Kadi runtime/tools if required by your environment:
+2. (Optional) Install Kadi runtime/tools if required by your environment:
 ```bash
 kadi install
 ```
 
-3. Start the ability (three common ways):
-- Using the package start script:
+3. Build and start the ability (production/runtime):
 ```bash
-npm run start
-```
-- Directly with Kadi run (recommended when running inside a Kadi workspace):
-```bash
-kadi run start
-```
-- For stdio mode or broker mode (as defined in agent.json scripts):
-```bash
-npm run serve       # runs `npx tsx index.ts stdio`
-npm run serve:broker# runs `npx tsx index.ts broker`
+npm run build
+npm run start      # runs `node dist/index.js`
 ```
 
-4. Clean local deps:
+3b. Development and immediate execution (no build step):
+- Run the TypeScript source directly:
+```bash
+npm run dev        # runs `npx tsx index.ts`
+```
+- Run in stdio or broker mode:
+```bash
+npm run serve        # stdio mode: `npx tsx index.ts stdio`
+npm run serve:broker # broker mode: `npx tsx index.ts broker`
+```
+
+4. Clean local artifacts:
 ```bash
 npm run clean
 # or
-rm -rf node_modules package-lock.json
+rm -rf node_modules package-lock.json agent-lock.json dist
 ```
 
 Tools
 -----
 | Tool | Description |
 |------|-------------|
-| secret-ability (^0.9.4) | Declared ability dependency used by ability-eval (registered in agent.json under "abilities"). Provides domain-specific evaluation helpers or connectors required by this package. |
-| @kadi.build/core (^0.9.0) | Kadi runtime core used by the ability to register handlers, message routing and lifecycle integration. |
-| dotenv (^17.3.1) | Loads configuration values from a .env file into process.env at startup. |
-| tsx (^4.21.0) | Lightweight TypeScript runner used by the start/serve scripts to execute index.ts without a separate compile step. |
+| secret-ability (*) | Declared ability dependency used by ability-eval (registered in agent.json under "abilities"). Provides domain-specific evaluation helpers or connectors required by this package. |
+| @kadi.build/core (*) | Kadi runtime core used by the ability to register handlers, message routing and lifecycle integration. |
+| agents-library (*) | Utility library used by the ability (declared dependency). |
+| tsx (^4.21.0) | Lightweight TypeScript runner used by dev/serve scripts to execute index.ts without a separate compile step. |
 | typescript (@ dev) (^5.9.3) | Development dependency for type checking and local editing. |
 | @types/node (@ dev) (^25.3.1) | Node.js type definitions used during development and type-checking. |
 
 Configuration
 -------------
-Primary configuration lives in agent.json and environment variables loaded via dotenv.
+Primary configuration lives in agent.json and config.toml.
 
 Key files and fields:
 - agent.json (root)
   - name: "ability-eval"
-  - version: "0.1.0"
+  - version: "0.1.2"
   - description: "Evaluation engine ability - code diffs, test results, logs, behavior traces analysis"
-  - entrypoint: "index.ts" (main runtime file)
-  - scripts: preflight, setup, start, serve, serve:broker, clean
-    - start: npx tsx index.ts
+  - entrypoint: "dist/index.js" (runtime artifact produced by the build step)
+  - scripts:
+    - preflight: node --version
+    - setup: npm install && npm run build
+    - build: npx tsc
+    - start: node dist/index.js
+    - dev: npx tsx index.ts
     - serve: npx tsx index.ts stdio
     - serve:broker: npx tsx index.ts broker
+    - clean: rm -rf node_modules abilities agent-lock.json package-lock.json dist
   - abilities:
-    - secret-ability: "^0.9.4" (registered dependency required at runtime)
+    - secret-ability: "*" (registered dependency required at runtime)
+
+- config.toml (root)
+  - broker.local
+    - URL (e.g., "ws://localhost:8080/kadi")
+    - NETWORKS (array, e.g., ["eval"])
+    - MODE (e.g., "native")
+  - model
+    - EVAL_MODEL: model id used for evaluation (example: "claude-sonnet-4-20250514")
+    - MAX_TOKENS: token limit for model calls (example: 4096)
 
 - package.json / dependencies
-  - @kadi.build/core, dotenv, tsx (runtime)
+  - @kadi.build/core, agents-library, tsx (runtime)
   - typescript, @types/node (dev)
 
-Environment variables
-- Any variables required by your deployment or index.ts should be provided via a .env file loaded with dotenv. Common example entries you may add to .env:
-```
-KADI_BROKER_URL=amqp://localhost:5672
-KADI_AGENT_ID=ability-eval
-LOG_LEVEL=info
-```
-index.ts is expected to call dotenv.config() early in startup to pick these up.
+Environment and runtime configuration
+- Runtime configuration is primarily provided via config.toml in the project root.
+- agent.json controls the run/build scripts and ability declarations.
+- If your deployment also relies on environment variables, set them in your environment or via whatever secrets/config system you use; this project no longer lists dotenv as a dependency in package.json.
 
 File paths referenced in this project
 - agent.json (project root) — Kadi ability descriptor
-- index.ts (project root) — entrypoint used by start/serve scripts
+- index.ts (project root) — TypeScript source entrypoint used in development
+- dist/index.js (project root) — compiled runtime entrypoint used by `npm run start`
+- config.toml (project root) — runtime configuration (broker, model, etc.)
 - node_modules/ — installed dependencies
-- package-lock.json — lockfile created by npm
-- .env (optional, project root) — runtime environment variables
+- package-lock.json / agent-lock.json — lockfiles
+- abilities/ — resolved abilities (installed by kadi install)
 
 Architecture
 ------------
 ability-eval is organized around a small set of runtime components and a simple data flow tailored for evaluation tasks.
 
 Key components
-- Entrypoint (index.ts)
-  - Initializes the environment (dotenv), bootstraps the @kadi.build/core runtime, and registers ability handlers.
-  - Accepts runtime mode args (e.g., "stdio" or "broker") as implemented in the scripts.
+- Source entrypoint (index.ts)
+  - TypeScript source that initializes the runtime, registers handlers and implements evaluation logic. For production runs it is compiled to dist/index.js via npm run build.
+- Runtime entrypoint (dist/index.js)
+  - The compiled artifact executed by `node dist/index.js` for production-style runs.
 - Ability registry (agent.json -> abilities)
   - Declares dependent abilities (secret-ability) that are resolved/loaded by the Kadi runtime or package manager before runtime.
 - Kadi runtime (@kadi.build/core)
   - Provides lifecycle, message routing, and inter-agent communication primitives.
+- agents-library
+  - Project dependency providing utility helpers used by the evaluation logic.
 - Evaluation engine / handlers
-  - The logic in index.ts (and any imported modules) consumes inputs (code diffs, test results, logs, traces), performs analysis using internal heuristics and helpers from secret-ability, and emits evaluation results to the configured sink (stdout in stdio mode or a Kadi broker in broker mode).
-- Configuration loader (dotenv)
-  - Loads runtime configuration from .env and process.env.
+  - The logic consumes inputs (code diffs, test results, logs, traces), performs analysis using internal heuristics and helpers from secret-ability and agents-library, and emits evaluation results to the configured sink (stdout in stdio mode or a Kadi broker in broker mode).
+- Configuration loader (config.toml)
+  - Loads runtime configuration for broker connectivity and model selection.
 
 Data flow
-1. On start, index.ts initializes configuration and connects to the runtime/broker if requested.
+1. On start, the compiled runtime (dist/index.js) initializes configuration from config.toml and agent.json, bootstraps the @kadi.build/core runtime, and connects to the broker if configured.
 2. Input events arrive via Kadi messages or stdio (depending on mode).
-3. The evaluation handlers parse inputs (diffs, test output, logs, traces), enrich or transform them, and invoke analysis routines (may call into secret-ability).
+3. The evaluation handlers parse inputs (diffs, test output, logs, traces), enrich or transform them, and invoke analysis routines (may call into secret-ability and agents-library).
 4. Results are emitted as structured evaluation messages to either the Kadi broker or written to stdout for downstream consumers.
 
 Development
 -----------
-Local development is TypeScript-first with immediate execution via tsx.
+Local development is TypeScript-first with immediate execution via tsx or build+run for testing production behavior.
 
 Common tasks
 - Preflight (check node):
@@ -120,22 +137,28 @@ Common tasks
 npm run preflight
 ```
 
-- Install dependencies:
+- Install dependencies and build:
 ```bash
-npm run setup
+npm run setup   # runs `npm install && npm run build`
 # or
 npm install
+npm run build   # runs `npx tsc`
 ```
 
-- Start locally (development):
+- Start (production/runtime):
 ```bash
-npm run start   # runs `npx tsx index.ts`
+npm run start   # runs `node dist/index.js`
 ```
 
-- Run in stdio or broker mode:
+- Development (run TypeScript source directly):
 ```bash
-npm run serve        # stdio mode
-npm run serve:broker # broker mode
+npm run dev     # runs `npx tsx index.ts`
+```
+
+- Run in stdio or broker mode (dev):
+```bash
+npm run serve
+npm run serve:broker
 ```
 
 - Clean local artifacts:
@@ -158,27 +181,27 @@ npx tsc --noEmit
 ```
 
 Notes and tips
-- index.ts is the canonical entrypoint — keep initialization and Kadi runtime registration logic centralized there.
-- Use dotenv to manage environment-specific configuration and keep secrets out of source control.
-- The package relies on secret-ability (^0.9.4) being present — ensure the runtime environment can resolve that dependency (via kadi install or npm).
+- index.ts is the source entrypoint; build to produce dist/index.js for runtime execution.
+- Configuration is primarily handled via config.toml (broker + model). Keep secrets and credentials out of source control and manage them with your deployment's secret store.
+- The package relies on secret-ability being present — ensure the runtime environment can resolve that dependency (via kadi install or npm).
 
 License and publishing
 - This README omits license and publishing instructions. Add a LICENSE file and update agent.json/package.json if you plan to publish the ability to a registry.
 
-If you need sample index.ts scaffolding, tests, or help wiring secret-ability into handlers, I can generate an example implementation to match this README.
+If you need sample index.ts scaffolding, tests, or help wiring secret-ability and agents-library into handlers, I can generate an example implementation to match this README.
 
 ## Quick Start
 
 ```bash
 cd ability-eval
 npm install
-kadi install
-kadi run start
+npm run build
+npm run start
 ```
 
 ## Tools
 
-<!-- TODO: Add Tools content -->
+(see Tools table above)
 
 ## Configuration
 
@@ -186,22 +209,14 @@ kadi run start
 
 | Field | Value |
 |-------|-------|
-| **Version** | 0.1.0 |
-| **Type** | N/A |
-| **Entrypoint** | `index.ts` |
+| **Version** | 0.1.2 |
+| **Type** | ability |
+| **Entrypoint** | `dist/index.js` |
 
 ### Abilities
 
-- `secret-ability` ^0.9.4
+- `secret-ability` *
 
 ## Architecture
 
-<!-- TODO: Add Architecture content -->
-
-## Development
-
-```bash
-npm install
-npm run build
-kadi run start
-```
+(see Architecture section above)

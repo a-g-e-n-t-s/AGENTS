@@ -2,34 +2,33 @@
 > Local file operations for AGENTS: list, move, copy, delete, create, and watch files/folders
 
 Overview
-This kadi-ability provides local filesystem operations for the AGENTS orchestration platform. It exposes a set of tools for listing, moving, copying, deleting, creating, and watching files and directories. The ability is implemented in TypeScript and uses common Node.js libraries (chokidar for watching, archiver/tar/unzipper for archives). The package entry point is index.ts and the agent metadata is defined in agent.json.
+This kadi-ability provides local filesystem operations for the AGENTS orchestration platform. It exposes a set of tools for listing, moving, copying, deleting, creating, and watching files and directories. The ability is implemented in TypeScript and uses common Node.js libraries (chokidar for watching, archiver/tar/unzipper for archives). The published package entry point is dist/index.js (development entrypoint index.ts) and the agent metadata is defined in agent.json.
 
 Quick Start
 1. Clone or add the ability to your AGENTS abilities folder.
-2. Install dependencies:
-npm install
+2. Install dependencies and build:
+   npm run setup
 
-3. Install the ability into your local kadi runtime (requires kadi CLI):
-kadi install
+3. Start the ability (production/build output):
+   npm run start
 
-4. Start the ability via kadi:
-kadi run start
-
-Alternative direct run (local development, bypassing kadi):
-npm run setup
-npm run start
-- or to serve over stdio:
-npm run serve
-- or to run in broker mode:
-npm run serve:broker
+Alternative direct run (local development, bypassing build step):
+- Run in development mode (runs index.ts directly with tsx):
+  npm run dev
+- Serve over stdio (dev):
+  npm run serve
+- Serve in broker mode (dev):
+  npm run serve:broker
 
 Available npm scripts (from agent.json)
 - preflight: node --version
-- setup: npm install
-- start: npx tsx index.ts
+- setup: npm install && npm run build
+- build: npx tsc
+- start: node dist/index.js
+- dev: npx tsx index.ts
 - serve: npx tsx index.ts stdio
 - serve:broker: npx tsx index.ts broker
-- clean: rm -rf node_modules abilities agent-lock.json package-lock.json
+- clean: rm -rf node_modules abilities agent-lock.json package-lock.json dist
 
 Tools
 | Tool | Description |
@@ -42,24 +41,34 @@ Tools
 | watch | Watch files or directories for events (create, change, delete) and emit events to the broker/stdio |
 
 Configuration
+
 agent.json
 - name: ability-file-local
-- version: 1.0.0
+- type: ability
+- version: 0.1.1
 - description: Local file operations - list, move, copy, delete, create, watch
-- entrypoint: index.ts
+- entrypoint: dist/index.js
 - scripts: defined as shown in Quick Start
 
+config.toml
+A repository-level config.toml is included to configure the local broker connection for this ability. Example fields present in config.toml:
+- broker.local.URL — WebSocket URL for local broker (example: "ws://localhost:8080/kadi")
+- broker.local.NETWORKS — array of network tags this ability announces (example: ["file"])
+- broker.local.MODE — runtime mode (example: "native")
+
 File paths and important files
-- index.ts — main entrypoint (registered in agent.json)
+- dist/index.js — compiled entrypoint (registered in agent.json)
+- index.ts — TypeScript source entrypoint (used for development via tsx)
 - agent.json — agent/ability metadata and scripts
+- config.toml — local ability configuration for broker settings
 - package.json (dependencies listed in the repository)
 - abilities/ — (runtime path where kadi keeps installed abilities)
 - agent-lock.json, package-lock.json — lock files cleaned by npm run clean
 
-Environment and .env
-- dotenv is included as a dependency. The ability will honor process.env variables loaded via a .env file if used.
-- There are no bespoke config keys mandated by the repository, so any runtime configuration should be passed through environment variables or via the kadi runtime broker when invoking tools.
-- Recommended environment variables you might set in .env (examples, optional):
+Environment and configuration
+- This ability uses a config.toml for broker/local configuration. See config.toml for broker URL, networks, and mode.
+- Environment variables can still be used by the runtime or passed by the kadi broker, but this repository does not automatically load a .env file (dotenv is not included as a dependency). If you rely on environment files, load them in your environment or add dotenv to the project.
+- Example environment variables you might set in your runtime environment (optional):
   - LOG_LEVEL=info
   - WATCH_POLL_INTERVAL=1000
 
@@ -69,7 +78,7 @@ Architecture
 High-level components
 - Kadi Core (@kadi.build/core)
   - Routes incoming tool invocations to this ability (via stdio broker or kadi broker).
-- Entry (index.ts)
+- Entry (index.ts / dist/index.js)
   - Registers tools with the Kadi runtime and wires handlers for each tool name.
 - Tool Handlers (one per tool)
   - Implement the behavior for list, move, copy, delete, create, watch.
@@ -98,61 +107,62 @@ Prerequisites
 - Node.js (see preflight script to verify)
 - npm
 - kadi CLI (for integration testing with the runtime)
-- TypeScript is used as a dev dependency; tsx runs index.ts directly.
+- TypeScript is used as a dev dependency; the build step produces dist/ via npx tsc. tsx is used for direct development runs.
 
 Install and run locally
-1. Install dependencies:
-npm install
+1. Install dependencies and build:
+   npm run setup
 
-2. Run the ability locally (direct):
-npm run start
-- For broker mode:
-npm run serve:broker
-- For stdio mode:
-npm run serve
+2. Run the ability (built output):
+   npm run start
 
-3. Install to kadi runtime and run:
-kadi install
-kadi run start
+3. For development (no build step, runs index.ts via tsx):
+   npm run dev
+
+4. Serve modes (development):
+   npm run serve
+   npm run serve:broker
+
+5. Install to kadi runtime and run:
+   kadi install
+   kadi run start
 
 Testing and iterative development
 - Modify index.ts to add or update tool registrations.
-- Use tsx to run TypeScript directly for fast iteration (no build step).
-- When changing dependencies or package metadata, re-run npm install or npm run setup as needed.
+- Use npm run dev (tsx) to run TypeScript directly for fast iteration (no build step).
+- When changing TypeScript types or production code, run npm run build (part of npm run setup) to regenerate dist/.
 
 Cleaning
-- To remove node_modules and runtime artifacts:
-npm run clean
+- To remove node_modules and runtime artifacts including built files:
+  npm run clean
 
 Extending tools
 - To add a new tool:
   1. Update index.ts to register the new tool name with @kadi.build/core tool registration API.
   2. Implement a handler that performs the required filesystem logic and returns a structured result or emits events.
-  3. Restart the ability (npm run start or kadi run start).
+  3. Build (npm run build) for production or restart dev mode (npm run dev).
 
 Dependencies (selected)
 - @kadi.build/core — integration with the Kadi runtime
 - chokidar — file system watching
 - archiver, tar, unzipper — create and extract archives
-- dotenv — environment variable loading
 - tsx — run TypeScript files in Node without a build step
-- typescript — dev dependency for type checking
+- typescript — dev dependency for type checking (and other @types packages listed in devDependencies)
 
 Support and issues
-- Report issues to your AGENTS/kadi project issue tracker. Include index.ts, sample request payload, expected behavior, and actual behavior.
+- Report issues to your AGENTS/kadi project issue tracker. Include dist/index.js or index.ts, sample request payload, expected behavior, and actual behavior.
 
 License
 - Check your repository root for a LICENSE file. If none exists, coordinate with your organization to add an appropriate license.
 
-This README provides the essential information to run, configure, and extend the ability-file-local kadi-ability. For implementation details, see index.ts and the helper modules in the repository.
+This README provides the essential information to run, configure, and extend the ability-file-local kadi-ability. For implementation details, see index.ts (development source) and dist/index.js (built entrypoint).
 
 ## Quick Start
 
 ```bash
 cd ability-file-local
-npm install
-kadi install
-kadi run start
+npm run setup
+npm run start
 ```
 
 ## Tools
@@ -165,9 +175,9 @@ kadi run start
 
 | Field | Value |
 |-------|-------|
-| **Version** | 1.0.0 |
-| **Type** | N/A |
-| **Entrypoint** | `index.ts` |
+| **Version** | 0.1.1 |
+| **Type** | ability |
+| **Entrypoint** | `dist/index.js` |
 
 ## Architecture
 
@@ -176,7 +186,7 @@ kadi run start
 ## Development
 
 ```bash
-npm install
-npm run build
+npm run setup
+npm run dev
 kadi run start
 ```
