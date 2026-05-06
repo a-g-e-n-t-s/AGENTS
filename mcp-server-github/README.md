@@ -30,7 +30,7 @@ Note: The runtime entrypoint is dist/index.js (package.json start: "node dist/in
 ## Runtime / Environment notes
 
 - Transport mode: The server checks MCP_TRANSPORT_TYPE (case-insensitive). If unset or set to "stdio", the server runs in STDIO mode and ANSI colors are disabled (NO_COLOR=1, FORCE_COLOR=0).
-- Startup logs include the server name and version (config.mcpServerName / config.mcpServerVersion), the selected transport (config.mcpTransportType), the GitHub API host (config.githubHost or config.githubApiUrl), and whether a GitHub token is configured (token is masked in logs).
+- Startup logs include the server name and version (config.mcpServerName / config.mcpServerVersion), the selected transport (config.mcpTransportType), the GitHub API: shows config.githubHost or config.githubApiUrl, and whether a GitHub token is configured (token is masked in logs).
 - In STDIO mode, fatal startup errors are written directly to stderr; otherwise they are logged via the logger.
 - The server installs handlers for SIGTERM and SIGINT to log shutdown and exit gracefully. Uncaught exceptions are logged (including stack) and the process exits.
 - The server uses the compiled output in dist/ (built by the kadi build process defined above).
@@ -47,3 +47,5 @@ kadi run start
 Notes:
 - The build uses bun to compile TypeScript (src/index.ts) to dist/.
 - The start script runs the compiled Node server (node dist/index.js).
+
+---

@@ -30,7 +30,7 @@ You can also run locally using the npm scripts defined in agent.json:
 - Start in broker mode (development):
   npm run serve:broker
 - Clean local artifacts:
-  npm run clean
+  npm run clean (removes node_modules, abilities, agent-lock.json, package-lock.json, and dist)
 
 Tools
 | Tool | Description |
@@ -151,16 +151,17 @@ Adding a new provider
 Testing and debugging
 - Use LOG_LEVEL=debug to increase runtime logging.
 - For one-off API testing, populate the provider developer token (e.g., BOX_DEVELOPER_TOKEN) and call the connector methods via an ad-hoc script.
-- Use npm run clean to remove node_modules, dist and lock files when resetting local state.
+- Use npm run clean to remove node_modules, abilities, dist and lock files when resetting local state.
 
 Dependencies (from package.json/agent.json)
 - @kadi.build/core — core KADI integration
-- form-data — for multipart uploads
-- node-fetch — HTTP client (v2.x)
-- tsx — run TypeScript files directly in Node.js (this project lists tsx in dependencies)
+- form-data — for multipart uploads (declared ^4.0.0)
+- node-fetch — HTTP client (declared ^2.7.0)
+- tsx — run TypeScript files directly in Node.js (declared ^4.21.0)
+
 Dev dependencies:
-- typescript — compile to dist/
-- @types/node — type definitions
+- typescript — compile to dist/ (declared ^5.9.3)
+- @types/node — type definitions (declared ^25.3.1)
 
 Files of interest
 - agent.json — agent manifest (entrypoint, scripts, metadata). Updated entrypoint: dist/index.js. This repository's agent.json also declares an abilities entry ("secret-ability": "*") and a remote broker URL ("wss://broker.dadavidtseng.com/kadi").

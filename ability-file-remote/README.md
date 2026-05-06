@@ -38,6 +38,7 @@ Tools
 |------|-------------|
 | ngrok | Public tunnel provider used to expose a local port to the internet. Requires NGROK_AUTH_TOKEN for authenticated tunnels. |
 | localtunnel | Lightweight tunneling provider (localtunnel.me) as an alternative to ngrok; supports requesting a subdomain. |
+| tsx | Development runtime used to execute TypeScript files directly (used by `npm run dev`, `npm run serve`, and `npm run serve:broker`). |
 | @kadi.build/core | Kadi core library used to integrate this ability with the AGENTS orchestration platform. |
 | fs-extra | Filesystem utilities used to read/write and manage temporary file storage. |
 | chalk | Colored terminal output used for status/debug logs. |

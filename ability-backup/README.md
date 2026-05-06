@@ -78,8 +78,8 @@ Key points:
 - Depends on broker tools such as arcade-backup / arcade-restore / arcade-db-info, cloud-upload / cloud-download (or URL-based fallbacks for distributed setups), file-compress / file-decompress, secret-get, and cloud-list.
 - Runs an optional staging FileSharingServer for staging transfers and includes a tunnel client for distributed topologies.
 - Starts a small dashboard server (optional) — configured via DASHBOARD_PORT and protected by DASHBOARD_USERNAME / DASHBOARD_PASSWORD when enabled in deployment.
-- Configuration is discovered via a walk-up mechanism (config.yml / config.toml) and secrets are read from vaults (secrets.toml). Environment variables can override config values.
-- The agent implements Convention Section 6 compliance: config and secret walk-up and KADI tunnel token lookup.
+- Configuration is discovered via a walk-up mechanism using config.toml (checked up the directory tree) and secrets are read from vaults (secrets.toml). Environment variables can override config values.
+- The agent implements Convention Section 6 compliance: config.toml walk-up for configuration, secrets.toml vault walk-up for secrets (including the `tunnel` vault / `KADI_TUNNEL_TOKEN`), and environment variable overrides for both systems.
 
 ## Development
 
@@ -105,3 +105,5 @@ Other helper scripts:
 ---
 
 If you need to inspect the build/deploy configuration, see agent.json (build/default and deploy sections) and config.toml in the repository.
+
+---

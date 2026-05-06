@@ -28,6 +28,7 @@ This enhanced version extends the base KĀDI template with four major capabiliti
 - [Hybrid Memory System](#hybrid-memory-system)
 - [File Management](#file-management)
 - [Deployment Service](#deployment-service)
+- [Registered Tools](#registered-tools)
 - [Bot Integration](#bot-integration)
 - [Development](#development)
 - [Testing](#testing)
@@ -215,6 +216,15 @@ Configuration table (summary):
 Abilities:
 - `secret-ability` ^0.9.4
 
+## Registered Tools
+
+This agent loads native tools/abilities at startup (see src/index.ts registerAllTools()). The repository includes a small set of registered tools by default:
+
+- echo — Echo back the input text with its length (placeholder tool — replace with your own)
+- list_tools — List all available tools in a human-readable format (informational; does not complete the user's request)
+
+Replace or extend these tools in src/tools/ as needed for your agent's domain.
+
 ## 🤖 Multi-LLM Provider System
 
 (unchanged — retains provider system documentation; note that the repo's default provider ordering is configured in config.toml: primary=model-manager, fallback=anthropic)
@@ -291,3 +301,5 @@ Built on the **KĀDI (Knowledge Agent Development Infrastructure)** protocol, en
 ## 🔗 Related Documentation
 
 - [Architecture Details](./docs/architecture.md)
+
+---

@@ -156,7 +156,7 @@ If you need more examples (tool inputs/outputs, config.toml sample, or CI/build 
 ## Quick Start
 
 ```bash
-cd search-ability
+cd ability-search
 npm install
 kadi install
 kadi run start
@@ -173,7 +173,7 @@ kadi run start
 | Field | Value |
 |-------|-------|
 | **Version** | 0.1.1 |
-| **Type** | N/A |
+| **Type** | ability |
 | **Entrypoint** | `dist/index.js` |
 
 ### Abilities
@@ -183,4 +183,4 @@ kadi run start
 ### Brokers
 
 - **local**: `ws://localhost:8080/kadi`
-- **remote**: `wss://broker.dadavidtseng.com/kadi
+- **remote**: `wss://broker.dadavidtseng.com/kadi`

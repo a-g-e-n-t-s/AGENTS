@@ -18,13 +18,20 @@ mcp-server-quest is an MCP-related package that provides tooling for managing qu
 
 ## Installation
 
+Recommended build/install steps (matches agent.json build/run):
+
 ```bash
-# Install dependencies
-npm ci
+# Install deps (including dev deps, required for build)
+npm ci --include=dev
 
 # Build the project (TypeScript)
 npx tsc
+
+# Optionally prune dev deps for production image
+npm prune --omit=dev
 ```
+
+You can still install and build locally with the simpler commands for development, but the image build uses the sequence above.
 
 The project build configuration is set up to produce a production image from node:20-alpine (see agent.json build section).
 
@@ -141,11 +148,15 @@ agent.json highlights (located at project root)
 
 Build configuration (used for image builds)
 - build.default.from: node:20-alpine
+- build.default.cli: latest
 - build.default.run: ["npm ci --include=dev", "npx tsc", "npm prune --omit=dev"]
 - build.default.env: { "NODE_ENV": "production" }
 
 Deploy (example akash-mainnet target)
-- exposes port 3100 (mapped as service port)
+- target: akash (akash-mainnet)
+- engine: podman
+- services.app.image: mcp-server-quest:0.1.0
+- exposes port 3100 (mapped as service port, global)
 - env defaults in deploy: MCP_TRANSPORT_TYPE=http, MCP_PORT=3100, NODE_ENV=production
 - resources: cpu 0.5, memory 512Mi, ephemeralStorage 512Mi
 

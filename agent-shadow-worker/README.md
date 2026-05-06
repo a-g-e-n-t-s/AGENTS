@@ -36,7 +36,7 @@ The agent publishes role-specific event topics, for example:
 | **Version** | 0.1.2 |
 | **Type** | agent |
 | **Entrypoint** | dist/index.js |
-| **Notable scripts** | start, start:artist, start:designer, start:programmer, dev, build, setup, preflight |
+| **Notable scripts** | start, start:artist, start:designer, start:programmer, dev, build, setup, preflight, type-check, lint, test, clean |
 
 See agent.json for full build and deploy profiles.
 
@@ -47,7 +47,7 @@ The agent reads configuration from config.toml and role-specific files under con
 - [agent]
   - ID — agent identifier (example: "agent-shadow-worker")
   - ROLE — default role (artist/programmer/designer). AGENT_ROLE env var overrides this.
-  - VERSION — local agent config version
+  - VERSION — local agent config version (the repo's config.toml currently sets VERSION = "1.0.0")
 
 - [logging]
   - LEVEL — log level (info, debug, etc.)
@@ -121,6 +121,7 @@ npm run setup             # alias to build in package scripts
 # tests / lint
 npm run test
 npm run lint
+npm run type-check
 
 # run (after build)
 kadi run start
@@ -142,7 +143,7 @@ Notes:
 agent.json includes deploy profiles for local Docker-based runs:
 - do-programmer, do-artist, do-designer: run a single role container (image: agent-shadow-worker:0.1.2). Each profile sets AGENT_ROLE and maps a host playground volume.
   - The container command uses: kadi secret receive --vault anthropic --vault model-manager --vault arcadedb && kadi run start:{role}
-  - Deploy profiles also set ARCADE_HOST and ARCADE_PORT environment variables (e.g. arcadedb.dadavidtseng.com:443) so the agent can connect to ArcadeDB if configured.
+  - Deploy profiles also set ARCADE_HOST and ARCADE_PORT environment variables (e.g. ARCADE_HOST=arcadedb.dadavidtseng.com and ARCADE_PORT=443) so the agent can connect to ArcadeDB if configured.
   - Host volume mappings provided in the profiles are:
     - ~/agent-playground-shadow-programmer:/app/playground
     - ~/agent-playground-shadow-artist:/app/playground
@@ -158,5 +159,3 @@ See agent.json -> deploy for the full configuration (images, env, volumes, resta
 ---
 
 If nothing else, run kadi run start and check your broker for registered topics and agent status.
-
----

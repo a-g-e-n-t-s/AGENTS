@@ -45,9 +45,16 @@ Primary configuration sources and fields:
   - `entrypoint` (string) — runtime entry file (`dist/index.js`).
   - `abilities` (object) — declared dependent abilities (e.g. `"ability-graph": "^0.1.2"`, `"secret-ability": "^0.9.4"`).
   - `brokers` (object) — broker definitions (example in repo: `"remote": "wss://broker.dadavidtseng.com/kadi"`).
-  - `scripts.setup`, `scripts.build`, `scripts.start`, `scripts.dev`, etc. (`setup` runs install+build, `build` runs `npx tsc`, `start` runs packaged entrypoint).
+  - `scripts.preflight`, `scripts.setup`, `scripts.build`, `scripts.start`, `scripts.dev`, `scripts.clean` etc.:
+    - `preflight` runs a quick preflight check (`node --version`).
+    - `setup` runs install+build (`npm install && npm run build`).
+    - `build` runs `npx tsc`.
+    - `start` runs the packaged entrypoint (`node dist/index.js broker`).
+    - `dev` runs the source (`npx tsx src/index.ts`).
+    - `clean` removes local artifacts (`rm -rf node_modules abilities agent-lock.json package-lock.json dist`).
 
 - config.toml (optional config file shipped in repo)
+  - Note: secrets are placed in `secrets.toml` (encrypted vault) and loaded via Vault integration.
   - [docs] section — docs-related configuration fields:
     - `database` — default database (example: `agents_memory`)
     - `default_collection` — default collection (example: `agents-docs`)
@@ -131,6 +138,9 @@ Local development tips and commands:
 - Install dependencies:
 `npm install`
 
+- Preflight check (quick node version sanity check):
+`npm run preflight`
+
 - Set up (agent.json provides a `setup` script which runs install+build):
 `npm run setup`
 
@@ -144,6 +154,9 @@ Local development tips and commands:
 `npm run dev`  (runs `npx tsx src/index.ts`)  
 or
 `npx tsx src/index.ts`
+
+- Clean local artifacts:
+`npm run clean`  (removes node_modules, dist, and other local state)
 
 - Useful environment variables:
   - `BROKER_URL` — force a broker URL to use (overrides agent.json broker resolution).
@@ -190,22 +203,4 @@ kadi run start
 ### Abilities
 
 - `ability-graph` ^0.1.2
-- `secret-ability` ^0.9.4
-
-### Brokers
-
-- **remote**: `wss://broker.dadavidtseng.com/kadi` (see `config.toml` for broker `URL`, `NETWORKS`, and `MODE`)
-
-## Architecture
-
-See "Architecture" section above and `src/index.ts` for implementation details and the registration of the tools.
-
-## Development
-
-```bash
-npm install
-npm run build
-kadi run start
-```
-
----
+- `secret-ability` ^0.9

@@ -143,14 +143,19 @@ Extending tools
   3. Build (npm run build) for production or restart dev mode (npm run dev).
 
 Dependencies (selected)
-- @kadi.build/core — integration with the Kadi runtime
+- @kadi.build/core — *
 - archiver — ^6.0.1
 - chokidar — ^3.6.0
 - tar — ^6.2.0
 - tsx — ^4.21.0
 - unzipper — ^0.12.3
-- typescript (devDependency) — ^5.0.0
-- @types/node, @types/archiver, @types/tar, @types/unzipper — dev types present
+
+Dev dependencies (selected)
+- typescript — ^5.0.0
+- @types/node — ^25.5.0
+- @types/archiver — ^7.0.0
+- @types/tar — ^6.1.13
+- @types/unzipper — ^0.10.11
 
 Support and issues
 - Report issues to your AGENTS/kadi project issue tracker. Include dist/index.js or index.ts, sample request payload, expected behavior, and actual behavior.
@@ -202,3 +207,5 @@ Data flow
 1. Kadi runtime invokes a tool by name.
 2. Handler validates input and performs file operations or registers watchers.
 3. Results and events are returned via the broker or stdio channel.
+
+---

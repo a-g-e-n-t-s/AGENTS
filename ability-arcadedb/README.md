@@ -33,7 +33,7 @@ Tools
 | --- | --- |
 | arcade-backup | Create a database backup. The backup file is made available for download via the built-in file-sharing server / tunnel. |
 | arcade-restore | Restore a database from a backup. Accepts either a local path or a file-sharing / tunnel URL. |
-| arcade-backup-cleanup | Stop the temporary file-sharing/tunnel server started by arcade-backup to finalize cleanup. |
+| arcade-backup-cleanup | Stop the temporary file-sharing server started by arcade-backup to finalize cleanup. |
 | arcade-start | Start the ArcadeDB container. Returns early if already running. |
 | arcade-stop | Stop the ArcadeDB container. |
 | arcade-status | Get the current status of the ArcadeDB container (running state, exposed ports, uptime). |
@@ -77,6 +77,12 @@ Configuration
   - src/index.ts — main registration of tools
   - scripts/start-arcadedb.sh — helper script used by container command
   - build stages copy ArcadeDB files into /home/arcadedb and Java into /opt/java/openjdk
+
+Local config (config.toml)
+- The repository contains a config.toml used by the local config loader (src/lib/config.js). Current defaults:
+  - [broker.local] URL = "wss://broker.dadavidtseng.com/kadi", NETWORKS = ["arcadedb"], MODE = "native"
+  - [arcadedb] USERNAME = "root"
+- Secrets should be placed in the encrypted secrets.toml (vault) used during deploy/local runs.
 
 Architecture
 - Key components

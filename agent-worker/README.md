@@ -200,3 +200,5 @@ Notes and tips:
 Contact / Contribution
 ----------------------
 Follow repository contribution and code
+
+---
