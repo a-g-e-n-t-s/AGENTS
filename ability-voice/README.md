@@ -29,15 +29,17 @@ kadi run start
 | **Type** | ability |
 | **Description** | Voice operations - TTS (Piper), STT (Whisper), wake word detection |
 | **Entrypoint** | `src/ability_voice/__main__.py` |
+| **Networks** | `["voice"]` |
+| **Brokers** | `{"remote": "wss://broker.dadavidtseng.com/kadi"}` |
 
 #### Available scripts (from agent.json)
 | Script | Command |
 |--------|---------|
-| preflight | `python --version` |
-| setup | `uv sync` |
-| start | `uv run python -m ability_voice` |
-| serve | `KADI_MODE=stdio uv run python -m ability_voice` |
-| serve:broker | `KADI_MODE=broker uv run python -m ability_voice` |
+| preflight | `python3 --version` |
+| setup | `uv sync || (python3 -m venv .venv && .venv/bin/pip install -e .)` |
+| start | `uv run python3 -m ability_voice || .venv/bin/python3 -m ability_voice` |
+| serve | `KADI_MODE=stdio uv run python3 -m ability_voice` |
+| serve:broker | `KADI_MODE=broker uv run python3 -m ability_voice` |
 | clean | `rm -rf .venv __pycache__ src/ability_voice/__pycache__` |
 
 ### config.toml
@@ -48,6 +50,9 @@ Default configuration options (config.toml):
   - URL: "ws://localhost:8080/kadi"
   - NETWORKS: ["voice"]
   - MODE: "native"
+- broker.remote
+  - URL: "wss://broker.dadavidtseng.com/kadi"
+  - NETWORKS: ["voice"]
 - whisper
   - MODEL: "base"
 - piper
@@ -68,8 +73,8 @@ Adjust these values in your local config.toml to match your environment and desi
 
 ```bash
 npm install
-kadi run setup          # runs `uv sync` to prepare the environment
-kadi run start          # starts the ability (uses `uv run python -m ability_voice`)
+kadi run setup          # runs `uv sync || (python3 -m venv .venv && .venv/bin/pip install -e .)` to prepare the environment
+kadi run start          # starts the ability (tries `uv run python3 -m ability_voice` then falls back to `.venv/bin/python3 -m ability_voice`)
 ```
 
 Run in stdio mode (local development / testing):
@@ -89,6 +94,8 @@ Cleanup:
 ```bash
 kadi run clean
 ```
+
+---
 
 ---
 
