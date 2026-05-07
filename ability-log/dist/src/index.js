@@ -111,11 +111,17 @@ client.registerTool({
     }
     const where = conditions.length > 0 ? ` WHERE ${conditions.join(' AND ')}` : '';
     const limit = Math.min(args.limit ?? 100, 500);
-    const sql = `SELECT FROM LogEntry${where} ORDER BY timestamp DESC LIMIT ${limit}`;
+    const sql = conditions.length > 0
+        ? `SELECT FROM LogEntry${where} LIMIT ${limit}`
+        : `SELECT FROM LogEntry ORDER BY timestamp DESC LIMIT ${limit}`;
     const result = await db.query(sql, params);
+    const entries = result.result ?? [];
+    if (conditions.length > 0) {
+        entries.sort((a, b) => (b.timestamp ?? '').localeCompare(a.timestamp ?? ''));
+    }
     return {
         success: result.success,
-        entries: result.result ?? [],
+        entries,
         count: result.count ?? 0,
         error: result.error,
     };
@@ -173,11 +179,17 @@ client.registerTool({
     }
     const where = conditions.length > 0 ? ` WHERE ${conditions.join(' AND ')}` : '';
     const limit = Math.min(args.limit ?? 100, 500);
-    const sql = `SELECT FROM SystemEvent${where} ORDER BY timestamp DESC LIMIT ${limit}`;
+    const sql = conditions.length > 0
+        ? `SELECT FROM SystemEvent${where} LIMIT ${limit}`
+        : `SELECT FROM SystemEvent ORDER BY timestamp DESC LIMIT ${limit}`;
     const result = await db.query(sql, params);
+    const events = result.result ?? [];
+    if (conditions.length > 0) {
+        events.sort((a, b) => (b.timestamp ?? '').localeCompare(a.timestamp ?? ''));
+    }
     return {
         success: result.success,
-        events: result.result ?? [],
+        events,
         count: result.count ?? 0,
         error: result.error,
     };

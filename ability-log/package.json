@@ -1,6 +1,6 @@
 {
   "name": "ability-log",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "type": "module",
   "description": "Persistent log and event storage ability — writes to ArcadeDB, supports batch insert, query, and auto-prune",
   "main": "dist/src/index.js",
