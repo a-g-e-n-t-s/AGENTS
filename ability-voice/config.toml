@@ -5,6 +5,10 @@ URL = "ws://localhost:8080/kadi"
 NETWORKS = ["voice"]
 MODE = "native"
 
+[broker.remote]
+URL = "wss://broker.dadavidtseng.com/kadi"
+NETWORKS = ["voice"]
+
 [whisper]
 MODEL = "base"
 

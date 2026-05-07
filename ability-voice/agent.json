@@ -4,12 +4,16 @@
   "version": "1.0.0",
   "description": "Voice operations - TTS (Piper), STT (Whisper), wake word detection",
   "entrypoint": "src/ability_voice/__main__.py",
+  "networks": ["voice"],
+  "brokers": {
+    "remote": "wss://broker.dadavidtseng.com/kadi"
+  },
   "scripts": {
-    "preflight": "python --version",
-    "setup": "uv sync",
-    "start": "uv run python -m ability_voice",
-    "serve": "KADI_MODE=stdio uv run python -m ability_voice",
-    "serve:broker": "KADI_MODE=broker uv run python -m ability_voice",
+    "preflight": "python3 --version",
+    "setup": "uv sync || (python3 -m venv .venv && .venv/bin/pip install -e .)",
+    "start": "uv run python3 -m ability_voice || .venv/bin/python3 -m ability_voice",
+    "serve": "KADI_MODE=stdio uv run python3 -m ability_voice",
+    "serve:broker": "KADI_MODE=broker uv run python3 -m ability_voice",
     "clean": "rm -rf .venv __pycache__ src/ability_voice/__pycache__"
   }
 }
