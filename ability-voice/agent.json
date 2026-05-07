@@ -2,18 +2,89 @@
   "name": "ability-voice",
   "type": "ability",
   "version": "1.0.0",
-  "description": "Voice operations - TTS (Piper), STT (Whisper), wake word detection",
+  "description": "Voice operations - TTS (Piper), STT (Whisper), wake word detection, optimized for NVIDIA Jetson",
   "entrypoint": "src/ability_voice/__main__.py",
   "networks": ["voice"],
   "brokers": {
     "remote": "wss://broker.dadavidtseng.com/kadi"
   },
   "scripts": {
-    "preflight": "python3 --version",
-    "setup": "uv sync || (python3 -m venv .venv && .venv/bin/pip install -e .)",
-    "start": "uv run python3 -m ability_voice || .venv/bin/python3 -m ability_voice",
-    "serve": "KADI_MODE=stdio uv run python3 -m ability_voice",
-    "serve:broker": "KADI_MODE=broker uv run python3 -m ability_voice",
-    "clean": "rm -rf .venv __pycache__ src/ability_voice/__pycache__"
+    "preflight": "python3 -c \"import torch; print(f'CUDA available: {torch.cuda.is_available()}')\" || python3 --version",
+    "setup": "python3 -m venv venv && ./venv/bin/pip install --upgrade pip && ./venv/bin/pip install -r requirements.txt",
+    "start": "./venv/bin/python3 -m ability_voice",
+    "listen": "LISTEN_MODE=1 ./venv/bin/python3 -m ability_voice",
+    "standalone": "STANDALONE=1 ./venv/bin/python3 -m ability_voice",
+    "test": "./venv/bin/python3 -m pytest tests/",
+    "clean": "rm -rf venv .venv __pycache__ src/ability_voice/__pycache__"
+  },
+  "abilities": {
+    "secret-ability": "^0.4.1"
+  },
+  "build": {
+    "default": {
+      "image": "ability-voice:1.0.0",
+      "from": "nvcr.io/nvidia/l4t-pytorch:r36.2.0-pth2.3-py3",
+      "run": [
+        "apt-get update && apt-get install -y python3-pyaudio portaudio19-dev libsndfile1 ffmpeg espeak-ng libespeak-ng-dev git cmake build-essential alsa-utils pulseaudio-utils",
+        "pip3 install --break-system-packages -r requirements.txt",
+        "mkdir -p /root/.local/share/piper/voices",
+        "wget -q -O /root/.local/share/piper/voices/en_US-lessac-medium.onnx https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/lessac/medium/en_US-lessac-medium.onnx",
+        "wget -q -O /root/.local/share/piper/voices/en_US-lessac-medium.onnx.json https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/lessac/medium/en_US-lessac-medium.onnx.json"
+      ],
+      "cmd": ["python3", "-m", "ability_voice"]
+    },
+    "x86": {
+      "image": "ability-voice:x86",
+      "from": "pytorch/pytorch:2.1.0-cuda12.1-cudnn8-runtime",
+      "run": [
+        "apt-get update && apt-get install -y python3-pyaudio portaudio19-dev libsndfile1 ffmpeg espeak-ng libespeak-ng-dev git",
+        "pip3 install -r requirements.txt",
+        "mkdir -p /root/.local/share/piper/voices",
+        "wget -q -O /root/.local/share/piper/voices/en_US-lessac-medium.onnx https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/lessac/medium/en_US-lessac-medium.onnx",
+        "wget -q -O /root/.local/share/piper/voices/en_US-lessac-medium.onnx.json https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/lessac/medium/en_US-lessac-medium.onnx.json"
+      ],
+      "cmd": ["python3", "-m", "ability_voice"]
+    }
+  },
+  "deploy": {
+    "local": {
+      "target": "local",
+      "engine": "docker",
+      "services": {
+        "voice": {
+          "image": "ability-voice:1.0.0",
+          "env": [
+            "NVIDIA_VISIBLE_DEVICES=all",
+            "NVIDIA_DRIVER_CAPABILITIES=compute,utility",
+            "KADI_BROKER_URL=wss://broker.dadavidtseng.com/kadi",
+            "KADI_AGENT_NAME=ability-voice",
+            "WHISPER_MODEL=base.en"
+          ]
+        }
+      }
+    },
+    "local-listen": {
+      "target": "local",
+      "engine": "docker",
+      "services": {
+        "voice": {
+          "image": "ability-voice:1.0.0",
+          "env": [
+            "NVIDIA_VISIBLE_DEVICES=all",
+            "NVIDIA_DRIVER_CAPABILITIES=compute,utility",
+            "KADI_BROKER_URL=wss://broker.dadavidtseng.com/kadi",
+            "KADI_AGENT_NAME=ability-voice",
+            "LISTEN_MODE=1",
+            "WHISPER_MODEL=base.en"
+          ]
+        }
+      }
+    }
+  },
+  "metadata": {
+    "tags": ["voice", "tts", "stt", "whisper", "piper", "jetson", "edge-ai", "wake-word"],
+    "platforms": ["linux/arm64", "linux/amd64"],
+    "hardware": ["jetson-orin-nano", "jetson-orin-nx", "nvidia-gpu"],
+    "capabilities": ["transcribe", "synthesize", "speak", "transcribe_file", "list_voices", "start_listening", "stop_listening", "listener_status"]
   }
 }
