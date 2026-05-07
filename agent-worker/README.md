@@ -61,7 +61,7 @@ Files and locations:
 Key agent.json fields (updated)
 - name: agent-worker
 - type: agent
-- version: 0.3.3
+- version: 0.3.4
 - entrypoint: dist/index.js
 - scripts: preflight (node --version), setup (npm run build), start (node dist/index.js), dev (npx tsx watch src/index.ts), etc.
 - abilities: secret-ability, ability-file-local, ability-log
@@ -76,6 +76,7 @@ Key configuration fields and environment variables:
   - PRIMARY — primary provider to use (example: "model-manager")
   - FALLBACK — fallback provider (example: "anthropic")
   - provider.<name>.MODEL — provider-specific model selection (e.g. provider.model-manager.MODEL = "gpt-5-mini")
+  - provider.anthropic.MODEL in config.toml is set to "claude-haiku-4-5-20251001"
   - The runtime loads providers via the ProviderManager and chooses PRIMARY/FALLBACK per config.
 - Broker resolution:
   - Primary broker configured under [broker.local] or [broker.remote] in config.toml.
@@ -145,7 +146,7 @@ Deployment
 ----------
 agent.json contains deploy targets to run Docker-based local deployments for each role and combined ("do-programmer", "do-artist", "do-designer", "do-all"). Highlights:
 
-- Each deploy target runs a docker service named app (or role-named services for do-all) using the image agent-worker:0.3.3.
+- Each deploy target runs a docker service named app (or role-named services for do-all) using the image agent-worker:0.3.4.
 - Before starting the agent process the container runs:
   kadi secret receive --vault anthropic --vault model-manager --vault arcadedb && kadi run start:{role}
 - Required vaults and secrets per deploy:
@@ -154,6 +155,8 @@ agent.json contains deploy targets to run Docker-based local deployments for eac
   - arcadedb: ARCADE_USERNAME, ARCADE_PASSWORD
 - Secrets delivery is configured as "broker" in agent.json deploy.secrets.
 - Deploy env examples include NODE_ENV=production, AGENT_ROLE, ARCADE_HOST, ARCADE_PORT and volumes map a host playground directory into /app/playground for role-specific persistence.
+
+Note: the agent.json build configuration (used by the container build in CI/local tooling) includes steps that install kadi-secret and run kadi install as part of the image build process.
 
 Development
 -----------
@@ -164,3 +167,5 @@ Repository layout (relevant files):
 - config/roles/*.toml — role configs
 - agent.json — agent manifest and scripts
 - package.json
+
+---
