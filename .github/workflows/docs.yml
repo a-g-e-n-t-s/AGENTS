@@ -30,14 +30,14 @@ jobs:
         with:
           repository: dadavidtseng/Engine
           path: Engine
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.PAT_TOKEN }}
 
       - name: Clone DaemonAgent repo
         uses: actions/checkout@v4
         with:
           repository: dadavidtseng/DaemonAgent
           path: DaemonAgent
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.PAT_TOKEN }}
 
       # Create symlinks so ../../Engine resolves from agent-docs/
       - name: Link sibling repos
