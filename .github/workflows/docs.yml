@@ -107,6 +107,25 @@ jobs:
           git diff --cached --quiet || git commit -m "docs: auto-update READMEs via model-manager LLM"
           git push || true
 
+      # ── Step 5.5: Push READMEs back to Engine/DaemonAgent repos ──
+      - name: Push Engine README
+        run: |
+          cd Engine
+          git config user.name "agent-docs[bot]"
+          git config user.email "agent-docs[bot]@users.noreply.github.com"
+          git add README.md
+          git diff --cached --quiet || git commit -m "docs: auto-update README via agent-docs pipeline"
+          git push || true
+
+      - name: Push DaemonAgent README
+        run: |
+          cd DaemonAgent
+          git config user.name "agent-docs[bot]"
+          git config user.email "agent-docs[bot]@users.noreply.github.com"
+          git add README.md
+          git diff --cached --quiet || git commit -m "docs: auto-update README via agent-docs pipeline"
+          git push || true
+
       # ── Step 6: Build Astro/Starlight ──
       - name: Build docs site
         run: npx astro build
