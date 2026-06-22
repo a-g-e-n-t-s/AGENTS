@@ -8,6 +8,8 @@
  * @module src/config/index
  */
 import { homedir } from 'os';
+import { dirname, join } from 'path';
+import { fileURLToPath } from 'url';
 
 import dotenv from 'dotenv';
 import { z } from 'zod';
@@ -22,6 +24,10 @@ type PackageManifest = {
 };
 
 const packageManifest = packageJson as PackageManifest;
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const PROJECT_ROOT = join(__dirname, '..', '..');
+
 const hasFileSystemAccess =
   typeof process !== 'undefined' &&
   typeof process.versions === 'object' &&
@@ -441,7 +447,7 @@ const parseConfig = () => {
   const finalRawConfig = {
     ...rawConfig,
     pkg: parsedPkg,
-    logsPath: rawConfig.logsPath ?? (hasFileSystemAccess ? 'logs' : undefined),
+    logsPath: rawConfig.logsPath ?? (hasFileSystemAccess ? join(PROJECT_ROOT, 'logs') : undefined),
     mcpServerName: env.MCP_SERVER_NAME ?? parsedPkg.name,
     mcpServerVersion: env.MCP_SERVER_VERSION ?? parsedPkg.version,
     mcpServerDescription: env.MCP_SERVER_DESCRIPTION ?? parsedPkg.description,
