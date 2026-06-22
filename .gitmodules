@@ -1,3 +1,6 @@
 [submodule "kadi/kadi-broker"]
 	path = kadi/kadi-broker
 	url = https://github.com/dadavidtseng/kadi-broker.git
+[submodule "agent-worker"]
+	path = agent-worker
+	url = https://github.com/a-g-e-n-t-s/agent-worker.git
