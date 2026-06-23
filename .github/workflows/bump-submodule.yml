@@ -19,6 +19,7 @@ jobs:
           repository: a-g-e-n-t-s/AGENTS
           token: ${{ secrets.PAT_TOKEN }}
           submodules: true
+          fetch-depth: 0
 
       - name: Update submodule pointer
         run: |
@@ -31,11 +32,12 @@ jobs:
             exit 0
           fi
           git commit -m "chore: bump ${{ inputs.submodule-path }}"
-          # Retry push up to 3 times to handle race conditions
-          for i in 1 2 3; do
+          # Retry push up to 5 times to handle race conditions
+          for i in 1 2 3 4 5; do
             git push && exit 0
             echo "Push failed (attempt $i), pulling and retrying..."
+            sleep $((i * 2))
             git pull --rebase
           done
-          echo "Failed after 3 attempts"
+          echo "Failed after 5 attempts"
           exit 1
