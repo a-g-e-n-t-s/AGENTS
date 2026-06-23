@@ -6,6 +6,9 @@ on:
       submodule-path:
         required: true
         type: string
+    secrets:
+      PAT_TOKEN:
+        required: true
 
 jobs:
   bump:
@@ -13,6 +16,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          repository: a-g-e-n-t-s/AGENTS
           token: ${{ secrets.PAT_TOKEN }}
           submodules: true
 
