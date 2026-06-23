@@ -4,3 +4,6 @@
 [submodule "agent-worker"]
 	path = agent-worker
 	url = https://github.com/a-g-e-n-t-s/agent-worker.git
+[submodule "agent-producer"]
+	path = agent-producer
+	url = https://github.com/a-g-e-n-t-s/agent-producer.git
