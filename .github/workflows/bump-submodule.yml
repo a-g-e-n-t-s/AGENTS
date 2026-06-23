@@ -1,0 +1,26 @@
+name: Bump submodule
+
+on:
+  workflow_call:
+    inputs:
+      submodule-path:
+        required: true
+        type: string
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.PAT_TOKEN }}
+          submodules: true
+
+      - name: Update submodule pointer
+        run: |
+          git config user.name "submodule-bot[bot]"
+          git config user.email "submodule-bot[bot]@users.noreply.github.com"
+          git submodule update --remote ${{ inputs.submodule-path }}
+          git add ${{ inputs.submodule-path }}
+          git diff --cached --quiet || git commit -m "chore: bump ${{ inputs.submodule-path }}"
+          git push
