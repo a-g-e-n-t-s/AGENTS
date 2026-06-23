@@ -1,9 +1,0 @@
-node_modules
-dist
-secrets.toml
-.env
-*.log
-arcadedb-data
-.git
-.claude
-.DS_Store

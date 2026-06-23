@@ -31,3 +31,45 @@
 [submodule "agent-shadow-worker"]
 	path = agents/agent-shadow-worker
 	url = https://github.com/a-g-e-n-t-s/agent-shadow-worker.git
+[submodule "ability-arcadedb"]
+	path = abilities/ability-arcadedb
+	url = https://github.com/a-g-e-n-t-s/ability-arcadedb.git
+[submodule "ability-backup"]
+	path = abilities/ability-backup
+	url = https://github.com/a-g-e-n-t-s/ability-backup.git
+[submodule "ability-docs-memory"]
+	path = abilities/ability-docs-memory
+	url = https://github.com/a-g-e-n-t-s/ability-docs-memory.git
+[submodule "ability-eval"]
+	path = abilities/ability-eval
+	url = https://github.com/a-g-e-n-t-s/ability-eval.git
+[submodule "ability-file-cloud"]
+	path = abilities/ability-file-cloud
+	url = https://github.com/a-g-e-n-t-s/ability-file-cloud.git
+[submodule "ability-file-local"]
+	path = abilities/ability-file-local
+	url = https://github.com/a-g-e-n-t-s/ability-file-local.git
+[submodule "ability-file-remote"]
+	path = abilities/ability-file-remote
+	url = https://github.com/a-g-e-n-t-s/ability-file-remote.git
+[submodule "ability-graph"]
+	path = abilities/ability-graph
+	url = https://github.com/a-g-e-n-t-s/ability-graph.git
+[submodule "ability-log"]
+	path = abilities/ability-log
+	url = https://github.com/a-g-e-n-t-s/ability-log.git
+[submodule "ability-memory"]
+	path = abilities/ability-memory
+	url = https://github.com/a-g-e-n-t-s/ability-memory.git
+[submodule "ability-search"]
+	path = abilities/ability-search
+	url = https://github.com/a-g-e-n-t-s/ability-search.git
+[submodule "ability-tunnel"]
+	path = abilities/ability-tunnel
+	url = https://github.com/a-g-e-n-t-s/ability-tunnel.git
+[submodule "ability-vision"]
+	path = abilities/ability-vision
+	url = https://github.com/a-g-e-n-t-s/ability-vision.git
+[submodule "ability-voice"]
+	path = abilities/ability-voice
+	url = https://github.com/a-g-e-n-t-s/ability-voice.git

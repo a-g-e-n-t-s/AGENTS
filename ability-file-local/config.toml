@@ -1,6 +1,0 @@
-# Ability File Local Configuration
-
-[broker.local]
-URL = "ws://localhost:8080/kadi"
-NETWORKS = ["file"]
-MODE = "native"

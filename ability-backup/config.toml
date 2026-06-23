@@ -1,6 +1,0 @@
-# Ability Backup Configuration
-# Secrets go in secrets.toml (encrypted vault)
-
-[broker.local]
-URL = "wss://broker.dadavidtseng.com/kadi"
-NETWORKS = ["arcadedb", "backup", "global"]

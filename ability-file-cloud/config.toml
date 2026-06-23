@@ -1,7 +1,0 @@
-# Ability File Cloud Configuration
-# Secrets go in secrets.toml (encrypted vault)
-
-[broker.local]
-URL = "wss://broker.dadavidtseng.com/kadi"
-NETWORKS = ["file"]
-MODE = "broker"
