@@ -7,3 +7,27 @@
 [submodule "agent-producer"]
 	path = agent-producer
 	url = https://github.com/a-g-e-n-t-s/agent-producer.git
+[submodule "agent-builder"]
+	path = agent-builder
+	url = https://github.com/a-g-e-n-t-s/agent-builder.git
+[submodule "agent-chatbot"]
+	path = agent-chatbot
+	url = https://github.com/a-g-e-n-t-s/agent-chatbot.git
+[submodule "agent-docs"]
+	path = agent-docs
+	url = https://github.com/a-g-e-n-t-s/agent-docs.git
+[submodule "agent-expert"]
+	path = agent-expert
+	url = https://github.com/a-g-e-n-t-s/agent-expert.git
+[submodule "agent-lead"]
+	path = agent-lead
+	url = https://github.com/a-g-e-n-t-s/agent-lead.git
+[submodule "agent-qa"]
+	path = agent-qa
+	url = https://github.com/a-g-e-n-t-s/agent-qa.git
+[submodule "agent-quest"]
+	path = agent-quest
+	url = https://github.com/a-g-e-n-t-s/agent-quest.git
+[submodule "agent-shadow-worker"]
+	path = agent-shadow-worker
+	url = https://github.com/a-g-e-n-t-s/agent-shadow-worker.git
