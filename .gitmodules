@@ -73,3 +73,21 @@
 [submodule "ability-voice"]
 	path = abilities/ability-voice
 	url = https://github.com/a-g-e-n-t-s/ability-voice.git
+[submodule "mcp-server-blender"]
+	path = servers/mcp-server-blender
+	url = https://github.com/a-g-e-n-t-s/mcp-server-blender.git
+[submodule "mcp-server-discord"]
+	path = servers/mcp-server-discord
+	url = https://github.com/a-g-e-n-t-s/mcp-server-discord.git
+[submodule "mcp-server-git"]
+	path = servers/mcp-server-git
+	url = https://github.com/a-g-e-n-t-s/mcp-server-git.git
+[submodule "mcp-server-github"]
+	path = servers/mcp-server-github
+	url = https://github.com/a-g-e-n-t-s/mcp-server-github.git
+[submodule "mcp-server-quest"]
+	path = servers/mcp-server-quest
+	url = https://github.com/a-g-e-n-t-s/mcp-server-quest.git
+[submodule "mcp-server-slack"]
+	path = servers/mcp-server-slack
+	url = https://github.com/a-g-e-n-t-s/mcp-server-slack.git
