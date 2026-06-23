@@ -91,3 +91,18 @@
 [submodule "mcp-server-slack"]
 	path = servers/mcp-server-slack
 	url = https://github.com/a-g-e-n-t-s/mcp-server-slack.git
+[submodule "agents-library"]
+	path = agents/agents-library
+	url = https://github.com/a-g-e-n-t-s/agents-library.git
+[submodule "template-agent-python"]
+	path = templates/template-agent-python
+	url = https://github.com/a-g-e-n-t-s/template-agent-python.git
+[submodule "template-agent-typescript"]
+	path = templates/template-agent-typescript
+	url = https://github.com/a-g-e-n-t-s/template-agent-typescript.git
+[submodule "mcp-client-discord"]
+	path = clients/mcp-client-discord
+	url = https://github.com/a-g-e-n-t-s/mcp-client-discord.git
+[submodule "mcp-client-slack"]
+	path = clients/mcp-client-slack
+	url = https://github.com/a-g-e-n-t-s/mcp-client-slack.git
