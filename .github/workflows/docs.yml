@@ -8,7 +8,7 @@ on:
       - '**/README.md'
       - '**/agent.json'
       - '**/CLAUDE.md'
-      - 'agent-docs/**'
+      - 'agents/agent-docs/**'
       - '**/src/**'
       - '**/config.toml'
   workflow_dispatch:
@@ -22,7 +22,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.PAT_TOKEN }}
+          submodules: recursive
 
       # Clone sibling repos (Engine + DaemonAgent)
       - name: Clone Engine repo
@@ -49,20 +50,20 @@ jobs:
         with:
           node-version: 20
           cache: npm
-          cache-dependency-path: agent-docs/package-lock.json
+          cache-dependency-path: agents/agent-docs/package-lock.json
 
       # ── Step 1: Install ──
       - name: Install dependencies
         run: npm ci
-        working-directory: agent-docs
+        working-directory: agents/agent-docs
 
       # ── Step 1.5: Restore docs generation cache ──
       - name: Restore docs-gen cache
         uses: actions/cache@v4
         with:
           path: |
-            agent-docs/.cache/docs-gen
-            agent-docs/.cache/readme-gen
+            agents/agent-docs/.cache/docs-gen
+            agents/agent-docs/.cache/readme-gen
           key: docs-gen-${{ hashFiles('**/src/**/*.ts', '**/agent.json', '**/config.toml') }}
           restore-keys: |
             docs-gen-
@@ -73,7 +74,7 @@ jobs:
           MODEL_MANAGER_BASE_URL: ${{ secrets.MODEL_MANAGER_BASE_URL }}
           MODEL_MANAGER_API_KEY: ${{ secrets.MODEL_MANAGER_API_KEY }}
         run: npx tsx scripts/sync-cli.ts
-        working-directory: agent-docs
+        working-directory: agents/agent-docs
 
       # ── Step 3: LLM-enhanced README generation ──
       - name: Generate READMEs (LLM-enhanced)
@@ -88,7 +89,7 @@ jobs:
             echo "::warning::MODEL_MANAGER secrets not set — using template-based generation"
             npx tsx scripts/readme-gen-cli.ts
           fi
-        working-directory: agent-docs
+        working-directory: agents/agent-docs
 
       # ── Step 5: Commit README changes (if any) ──
       - name: Commit README updates
@@ -121,14 +122,14 @@ jobs:
       # ── Step 6: Build Astro/Starlight ──
       - name: Build docs site
         run: npx astro build
-        working-directory: agent-docs
+        working-directory: agents/agent-docs
 
       # ── Step 7: Deploy static files to DO VPS via rsync ──
       - name: Deploy to VPS
         uses: burnett01/rsync-deployments@7.0.1
         with:
           switches: -avz --delete
-          path: agent-docs/dist/
+          path: agents/agent-docs/dist/
           remote_path: ~/kadi-gateway/apps/docs/
           remote_host: ${{ secrets.VPS_HOST }}
           remote_user: ${{ secrets.VPS_USER }}
